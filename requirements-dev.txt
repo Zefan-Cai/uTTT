@@ -1,0 +1,8 @@
+pytest>=8,<9
+pyyaml>=6,<7
+numpy>=1.26,<3
+pillow>=10,<13
+easydict>=1.13
+rich>=13
+transformers>=4.45,<5
+tomli>=2; python_version < "3.11"

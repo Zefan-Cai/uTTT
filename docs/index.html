@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Universal Test-Time Training: sharing the fast-weight bank across depth, as one dense operator (uTTT-Dense) or one globally routed pool (uTTT-MoE), for long-context language modeling and novel view synthesis.">
+<meta property="og:type" content="website">
+<meta property="og:title" content="Universal Test-Time Training">
+<meta property="og:description" content="Fast weights shared across the whole depth stack, rather than owned layer by layer.">
+<meta property="og:url" content="https://zefan-cai.github.io/uTTT.github.io/">
+<meta property="og:image" content="https://zefan-cai.github.io/uTTT.github.io/assets/uttt_main_figure.png">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Universal Test-Time Training">
+<meta name="twitter:description" content="Fast weights shared across the whole depth stack, rather than owned layer by layer.">
+<meta name="twitter:image" content="https://zefan-cai.github.io/uTTT.github.io/assets/uttt_main_figure.png">
+<title>Universal Test-Time Training</title>
+<style>
+  :root {
+    --ink: #1f2430; --muted: #5b6472; --line: #e3e6eb;
+    --accent: #1d4ed8; --read: #2563eb; --write: #dc2626;
+    --card: #f7f8fa; --bg: #ffffff;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--bg); color: var(--ink);
+    font: 17px/1.65 -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+  }
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 0 24px 80px; }
+  h1, h2 { font-family: Georgia, "Times New Roman", serif; font-weight: 600; }
+  h1 { font-size: 2.4em; line-height: 1.25; text-align: center; padding-top: 64px; }
+  /* the acronym uTTT, spelled out by the initials of the title */
+  h1 .cap { font-size: 1.22em; font-weight: 700; letter-spacing: -0.01em; }
+  h2 { font-size: 1.5em; margin: 56px 0 16px; }
+  h3 { font-family: Georgia, "Times New Roman", serif; font-weight: 600; font-size: 1.15em; margin: 30px 0 8px; }
+  p { margin: 12px 0; }
+  a { color: var(--accent); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  .authors { text-align: center; margin-top: 20px; font-size: 1.05em; }
+  .authors sup { color: var(--muted); }
+  .affil { text-align: center; color: var(--muted); margin-top: 6px; font-size: 0.95em; }
+  .btnrow { text-align: center; margin: 28px 0 8px; }
+  .btn {
+    display: inline-block; padding: 9px 22px; border-radius: 999px;
+    background: var(--ink); color: #fff; font-size: 0.95em;
+  }
+  .btn:hover { text-decoration: none; opacity: 0.85; }
+  .tldr {
+    background: var(--card); border: 1px solid var(--line); border-radius: 10px;
+    padding: 18px 22px; margin-top: 40px;
+  }
+  .tldr b { color: var(--ink); }
+  figure { margin: 28px 0; text-align: center; }
+  figure img { width: 100%; border: 1px solid var(--line); border-radius: 10px; display: block; }
+  figure a { display: block; }
+  figcaption { color: var(--muted); font-size: 0.9em; margin-top: 10px; text-align: left; }
+  .cards { display: flex; gap: 18px; flex-wrap: wrap; margin-top: 18px; }
+  .card {
+    flex: 1 1 300px; background: var(--card); border: 1px solid var(--line);
+    border-radius: 10px; padding: 18px 20px;
+  }
+  .card h3 { font-size: 1.1em; margin-bottom: 8px; }
+  .card ul { margin: 8px 0 0 18px; }
+  .card li { margin: 4px 0; }
+  .tag { font-size: 0.8em; color: var(--muted); }
+  table { border-collapse: collapse; width: 100%; font-size: 0.92em; }
+  .tablebox { overflow-x: auto; margin: 16px 0; }
+  th, td { padding: 6px 10px; text-align: right; border-bottom: 1px solid var(--line); white-space: nowrap; }
+  th:first-child, td:first-child { text-align: left; }
+  thead th { border-bottom: 2px solid var(--ink); font-weight: 600; }
+  .best { font-weight: 700; }
+  .ref td { color: var(--muted); }
+  .tnote { color: var(--muted); font-size: 0.88em; margin-top: 6px; }
+  pre {
+    background: #14161c; color: #e6e8ee; border-radius: 10px;
+    padding: 16px 18px; overflow-x: auto; font-size: 0.85em; line-height: 1.55;
+    margin: 14px 0;
+  }
+  .demogrid { display: flex; gap: 18px; flex-wrap: wrap; margin-top: 16px; }
+  .demotile {
+    flex: 1 1 220px; aspect-ratio: 16 / 10; border-radius: 10px; overflow: hidden;
+    background: var(--card); display: flex; flex-direction: column;
+    align-items: center; justify-content: center; text-align: center;
+  }
+  .demotile video { width: 100%; height: 100%; object-fit: cover; }
+  .demoholder { border: 2px dashed var(--line); color: var(--muted); gap: 8px; }
+  .demolabel { font-size: 0.82em; color: var(--muted); }
+  footer {
+    border-top: 1px solid var(--line); margin-top: 64px; padding-top: 18px;
+    color: var(--muted); font-size: 0.9em;
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <h1><span class="cap">U</span>niversal <span class="cap">T</span>est-<span class="cap">T</span>ime <span class="cap">T</span>raining</h1>
+
+  <p class="authors">
+    Zefan Cai<sup>1,*</sup> &nbsp; Qinzhe Hu<sup>1,*</sup> &nbsp;
+    Ziqiao Ma<sup>2</sup> &nbsp; Hao Tan<sup>3</sup> &nbsp; Junjie Hu<sup>1</sup>
+  </p>
+  <p class="affil">
+    <sup>1</sup>University of Wisconsin&ndash;Madison &nbsp;
+    <sup>2</sup>University of Michigan &nbsp;
+    <sup>3</sup>Adobe &nbsp;&nbsp; <sup>*</sup>Equal contribution
+  </p>
+
+  <div class="btnrow">
+    <a class="btn" href="https://github.com/Zefan-Cai/uTTT">Code</a>
+    <a class="btn" href="https://github.com/Zefan-Cai/uTTT/blob/main/docs/README.md">Documentation</a>
+    <a class="btn" href="https://github.com/Zefan-Cai/uTTT/blob/main/docs/configuration-catalog.md">Configurations</a>
+  </div>
+
+  <div class="tldr">
+    <p><b>TL;DR</b> &mdash; Test-Time Training compresses context into fast
+    weights, and existing designs make those fast weights <b>layer-private</b>:
+    every layer owns a state no other layer touches. We argue this is an
+    arbitrary restriction and study <b>universal fast weights</b>, where the
+    whole depth stack shares one state or one pool of states &mdash;
+    <b>uTTT-Dense</b>, a shared dense operator, and <b>uTTT-MoE</b>, a globally
+    shared expert pool, with <b>TTT-MoE</b>, a routed pool that stays
+    layer-local, as the controlled midpoint.</p>
+    <p>Sharing also changes what the model <i>is</i>: one state persisting
+    across depth makes the layer index a second recurrence axis, so an
+    <i>L</i>-layer stack unrolls into a single recurrence over
+    (chunk,&nbsp;layer) pairs, and state written deep at one chunk is read
+    shallow at the next. Layer-private TTT is the fixed-partition special
+    case of that model.</p>
+    <p>Across 32K-context language modeling and LVSM-style novel view
+    synthesis, moving fast weights from layer-private, to layer-local routed,
+    to a globally shared pool improves long-context retrieval monotonically
+    &mdash; RULER accuracy from 8.5 to 15.5 at 124M and 23.2 to 27.8 at 760M,
+    and object-level rendering from 24.5 to 25.5&nbsp;dB &mdash; though the
+    advantage concentrates at shorter contexts and does not yet hold at the
+    longest evaluated length.</p>
+  </div>
+
+  <h2>The ownership ladder</h2>
+
+  <figure>
+    <a href="assets/uttt_main_figure.png" target="_blank" rel="noopener"><img src="assets/uttt_main_figure.png" alt="Universal Test-Time Training method overview"></a>
+    <figcaption>
+      <b>Universal Test-Time Training.</b> <i>Left:</i> the model is a stack of
+      N uTTT blocks. <i>Middle:</i> a block keeps its own normalization,
+      projections, and local window attention private, and sends its projected
+      queries, keys, and values to the uTTT memory path. <i>Right:</i> the
+      memory itself is shared across the whole stack &mdash; <b>uTTT-MoE</b>
+      (top) exposes it as a pool of fast-weight experts that every block
+      addresses through a shared top-<i>K</i> router, and <b>uTTT-Dense</b>
+      (bottom) exposes it as a single dense fast-weight operator that every
+      block reads and updates in full.
+      <span style="color:var(--read)">Blue</span> arrows are reads,
+      <span style="color:var(--write)">red</span> arrows are updates.
+    </figcaption>
+  </figure>
+
+  <h2>Two task domains</h2>
+
+  <div class="cards">
+    <div class="card">
+      <h3>Novel view synthesis &nbsp;<span class="tag">uttt_nvs/</span></h3>
+      <ul>
+        <li>LVSM-style rendering on Objaverse/GSO and DL3DV, both at 256&times;256</li>
+        <li>PSNR / SSIM / LPIPS full-test evaluation with scene bootstrap</li>
+        <li>uTTT-Dense (r1/r2/r4/r8) and uTTT-MoE, plus TTT-Dense and TTT-MoE</li>
+        <li>The ladder is a configuration switch on one implementation &mdash; 64 configs</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3>Language modeling &nbsp;<span class="tag">uttt_llm/</span></h3>
+      <ul>
+        <li>32K context, 124M and 760M, global batch 32</li>
+        <li>Per-token loss on Book-3 and RULER retrieval evaluation</li>
+        <li>uTTT-MoE plus LaCT, TTT-Dense, TTT-MoE and attention baselines &mdash; 57 configs</li>
+        <li>One model package per paper row, shipped as run; uTTT-Dense not yet released</li>
+      </ul>
+    </div>
+  </div>
+
+  <h2>Key results</h2>
+
+  <h3>Language modeling</h3>
+
+  <figure>
+    <a href="assets/llm_ptl_ruler_pareto.png" target="_blank" rel="noopener"><img src="assets/llm_ptl_ruler_pareto.png"
+         alt="Per-token loss versus RULER retrieval at 124M and 760M"></a>
+    <figcaption>
+      <b>Per-token loss versus long-context retrieval</b> at (a)&nbsp;124M and
+      (b)&nbsp;760M. Each point is one model; the upper-left corner is best,
+      and the arrows trace the ownership ladder. Making the fast-weight pool
+      universal (uTTT-MoE) moves the model toward that corner relative to its
+      balanced and unbalanced layer-local counterparts (TTT-MoE w/ and w/o LB)
+      and to the two layer-private dense baselines, the published LaCT and our
+      own TTT-Dense, at both scales. The full-attention Transformer reaches
+      higher retrieval at the cost of a key&ndash;value cache that grows with
+      context.
+    </figcaption>
+  </figure>
+
+  <p>Long-context language modeling at 32K. PTL is mean next-token loss at
+  positions &ge;30K on Book-3; RULER is accuracy averaged over four evaluation
+  lengths. Bold marks the best bounded-state model; the full-attention
+  Transformer&dagger; is a reference whose key&ndash;value cache grows with
+  context.</p>
+
+  <div class="tablebox">
+  <table>
+    <thead>
+      <tr><th>Model</th><th>PTL &darr; (124M)</th><th>RULER &uarr; (124M)</th><th>PTL &darr; (760M)</th><th>RULER &uarr; (760M)</th></tr>
+    </thead>
+    <tbody>
+      <tr class="ref"><td>Transformer&dagger; (full attention)</td><td>3.0869</td><td>16.52</td><td>2.5978</td><td>34.16</td></tr>
+      <tr><td>LaCT</td><td>3.1234</td><td>8.50</td><td>2.5787</td><td>23.21</td></tr>
+      <tr><td>TTT-Dense</td><td>3.1219</td><td>12.65</td><td>2.5809</td><td>26.05</td></tr>
+      <tr><td>TTT-MoE w/o LB</td><td>3.1075</td><td>9.99</td><td>2.5843</td><td>24.86</td></tr>
+      <tr><td>TTT-MoE w/ LB</td><td>3.1062</td><td>12.82</td><td>2.5815</td><td>25.73</td></tr>
+      <tr><td>uTTT-MoE</td><td class="best">3.0857</td><td class="best">15.46</td><td class="best">2.5768</td><td class="best">27.85</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <figure>
+    <a href="assets/llm_ptl_by_token.png" target="_blank" rel="noopener">
+      <img src="assets/llm_ptl_by_token.png"
+           alt="Per-token validation loss by position at 124M and 760M"></a>
+    <figcaption>
+      <b>Per-token validation loss by position</b> within a 32K-token sequence,
+      at (a)&nbsp;124M and (b)&nbsp;760M; PTL is the mean of the right-hand end
+      (positions &ge;&nbsp;30K). Loss discriminates the models far less than
+      retrieval does, and more so with scale: at 760M the five fast-weight
+      models fall within a 0.0075-nat band while their RULER spread is 4.6
+      points, and the two orderings no longer agree.
+    </figcaption>
+  </figure>
+
+  <p>Sharing the bank is also the fastest of the three regimes. One global
+  pool is written by a single grouped kernel per chunk, where the layer-local
+  pools pay for <i>L</i> small updates; measured at 124M with matched
+  activation checkpointing and full backward through the recurrent state:</p>
+
+  <div class="tablebox">
+  <table>
+    <thead>
+      <tr><th>Regime</th><th>Experts stored</th><th>tok/s/GPU &uarr;</th><th>min / 1K steps &darr;</th><th>PTL &darr;</th><th>RULER &uarr;</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>TTT-Dense (layer-private)</td><td>1</td><td>29,614</td><td>36.9</td><td>3.1219</td><td>12.65</td></tr>
+      <tr><td>TTT-MoE w/ LB (layer-local)</td><td>4</td><td>23,888</td><td>45.7</td><td>3.1062</td><td>12.82</td></tr>
+      <tr><td>uTTT-MoE (universal)</td><td>48</td><td class="best">32,782</td><td class="best">33.3</td><td class="best">3.0857</td><td class="best">15.46</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <p class="tnote">The largest pool is also the fastest. Throughput is
+  implementation-sensitive: three implementations of the same 48-expert global
+  pool span 30,644&ndash;32,782 tok/s/GPU, so cross-architecture throughput
+  comparisons should be discounted accordingly.</p>
+
+  <h3>Novel view synthesis</h3>
+
+  <figure>
+    <a href="assets/nvs_by_view.png" target="_blank" rel="noopener"><img src="assets/nvs_by_view.png"
+         alt="PSNR, SSIM and LPIPS against view index on GSO and DL3DV"></a>
+    <figcaption>
+      <b>Ownership against view index</b>, full-test evaluation. TTT-Dense keeps one
+      private dense state per layer, TTT-MoE-e8a1 a layer-local pool of 8
+      experts, and uTTT-MoE-e64a1 a global pool of 64 experts &mdash; the last
+      two hold identical total capacity and parameter count. Rows are PSNR,
+      SSIM, and LPIPS; left column Objaverse/GSO, right column DL3DV.
+    </figcaption>
+  </figure>
+
+  <p>Novel view synthesis, full-test PSNR (mean over target views 1&ndash;23,
+  then over scenes; 1,019 GSO scenes and 140 DL3DV scenes).</p>
+
+  <div class="tablebox">
+  <table>
+    <thead>
+      <tr><th>Model</th><th>PSNR &uarr; (Objaverse/GSO)</th><th>PSNR &uarr; (DL3DV)</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>TTT-Dense</td><td>23.99</td><td>16.14</td></tr>
+      <tr><td>TTT-MoE-e8a1 (layer-local)</td><td>24.03</td><td>16.05</td></tr>
+      <tr><td>uTTT-MoE-e64a1 (global, top-1)</td><td>24.68</td><td>16.12</td></tr>
+      <tr><td>uTTT-MoE-e64a8 (global, top-8)</td><td class="best">25.56</td><td class="best">16.66</td></tr>
+      <tr class="ref"><td>Transformer&dagger; (full attention)</td><td>25.36</td><td>17.41</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <p class="tnote">Numbers from the paper's current version; full tables,
+  confidence intervals, and the balancing and capacity sweeps are in the
+  paper and reproducible from the released configs.</p>
+
+  <h2>Novel view synthesis demos</h2>
+
+  <p>uTTT-MoE renderings on held-out scenes, teacher-forced conditioning on
+  ground-truth views 0&hellip;k&minus;1.</p>
+
+  <div class="demogrid">
+    <!-- To publish a demo, replace a placeholder tile with:
+         <div class="demotile"><video src="assets/demos/NAME.mp4" muted autoplay loop playsinline></video>
+           <div class="demolabel">Objaverse/GSO &middot; uTTT-MoE</div></div> -->
+    <div class="demotile demoholder">
+      <div>Objaverse/GSO<br>object renderings &middot; uTTT-MoE</div>
+      <div class="demolabel">coming soon</div>
+    </div>
+    <div class="demotile demoholder">
+      <div>DL3DV<br>scene renderings &middot; uTTT-MoE</div>
+      <div class="demolabel">coming soon</div>
+    </div>
+  </div>
+
+
+  <footer>
+    <p>Reproducibility guides cover installation, data validation, distributed training,
+    checkpoint recovery, and evaluation protocols. CPU release checks are separate
+    from GPU numerical validation and full experimental reproduction.</p>
+    <a href="https://github.com/Zefan-Cai/uTTT">Code and setup instructions</a> &middot; MIT License &middot; builds on
+    <a href="https://tianyuanzhang.com/projects/ttt-done-right/">LaCT</a>,
+    <a href="https://github.com/fla-org/flame">flame</a> /
+    <a href="https://github.com/fla-org/flash-linear-attention">flash-linear-attention</a>,
+    and <a href="https://github.com/pytorch/torchtitan">torchtitan</a>.
+  </footer>
+
+</div>
+</body>
+</html>

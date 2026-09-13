@@ -1,0 +1,58 @@
+# Per-token-loss (PTL) evaluation job config: mean next-token loss by position
+# on Book-3 sequences of 32K tokens, following the paper's protocol.
+#
+# Both [eval] keys are required on 40/80GB GPUs. Without them the evaluator
+# materialises the full [batch, 32768, vocab] logits tensor in one lm_head
+# call and goes out of memory; with them, hidden states are projected through
+# the lm_head 2048 positions at a time.
+
+[model]
+config = "PATH/TO/MODEL_CONFIG.json"      # e.g. configs/main/124M/uttt_moe.json
+tokenizer_path = "fla-hub/transformer-1.3B-100B"
+
+[job]
+dump_folder = "eval_out"
+print_args = true
+
+[training]
+batch_size = 1
+seq_len = 32768
+context_len = 32768
+gradient_accumulation_steps = 1
+steps = 1                                  # set to n_rows / (batch_size x GPUs)
+max_norm = 1.0
+skip_nan_inf = true
+data_parallel_replicate_degree = 8   # MUST equal the GPU count you launch with (NPROC_PER_NODE x nodes)
+data_parallel_shard_degree = 1
+tensor_parallel_degree = 1
+compile = false
+data_files = "PATH/TO/book3-arrow/data-*.arrow"
+dataset = "arrow"
+dataset_name = "default"
+dataset_split = "train"
+num_workers = 4
+pin_memory = false
+persistent_workers = false
+prefetch_factor = 2
+seed = 42
+varlen = false
+
+[optimizer]
+name = "AdamW"
+eps = 1e-15
+lr = 3e-4
+
+[lr_scheduler]
+warmup_steps = 0
+
+[checkpoint]
+enable_checkpoint = true
+folder = "checkpoint"
+
+[metrics]
+log_freq = 1
+enable_wandb = false
+
+[eval]
+per_token_loss_from_hidden = true
+lm_head_chunk_size = 2048

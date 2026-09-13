@@ -1,0 +1,69 @@
+# uttt_moe_large_256_dl3dv -- stage 2 of the progressive-resolution ladder,
+# fine-tuned from the 128 checkpoint.
+#
+# Total batch size 256; see uttt_nvs/README.md ("Larger models").
+# Training data: DL3DV-10K (training split)
+# Evaluation data: DL3DV benchmark (140 test scenes)
+# Manifests come from uttt_nvs/datasets.yaml via `training.dataset` below.
+
+debug: false
+exp_name: uttt_moe_large_256_dl3dv
+model:
+  class_name: uttt_nvs.models.lvsm_moe.Images2latent3D
+  image_size: 256
+  patch_size: 8
+  dim: 768
+  layers: 24
+  act_ckpt: false
+  block_config:
+    type: uttt_nvs.models.uttt_moe_block.MemoryModel
+    params:
+      attn_head_dim: 64
+      fw_head_dim: 64
+      inter_multi: 3
+      fw_inter_multi: 1
+      v_gap: null
+      use_muon: false
+      num_experts: 64
+      num_active_experts: 1
+      sigmoid_router: false
+      router_alpha: 1.0
+      load_balancing_loss_alpha: 1.0e-05
+      l2_norm: true
+      pool_mode: shared
+      router_share_mode: share_all
+training:
+  torch_compile: true
+  grad_accum_steps: 1
+  grad_clip_norm: 1.0
+  may_skip_gradnorm_after: 1000
+  grad_checkpoint_every: 1
+  dataset_name: uttt_nvs.data.loader.NVSDataset
+  num_views: 12
+  eval_num_views: 24
+  allowed_gradnorm_factor: 5
+  batch_size_per_gpu: 4
+  num_workers: 4
+  num_threads: 1
+  prefetch_factor: 2
+  lpips_loss_weight: 0.0
+  num_epochs: 100000
+  max_fwdbwd_passes: 12000
+  round_max_fwdbwd_passes_to_epoch: false
+  lr: 1.0e-05
+  reset_lr: false
+  reset_training_state: true
+  load_optimizer_state_when_reset_training_state: false
+  beta1: 0.9
+  beta2: 0.95
+  weight_decay: 0.05
+  warmup: 2500
+  vis_every: 1000
+  print_every: 20
+  checkpoint_every: 500
+  api_key_path: uttt_nvs/api_keys.yaml
+  wandb_project: latent-LRM
+  wandb_log_every: 50
+  wandb_offline: false
+  dataset: dl3dv
+  total_batch_size: 256

@@ -1,0 +1,44 @@
+# uTTT language-modeling dependencies.
+#
+# Install order matters:
+#   pip install torch==2.8.0 --index-url https://download.pytorch.org/whl/cu128
+#   pip install -r uttt_llm/requirements.txt
+#   pip install flash-attn --no-build-isolation
+#
+# flash-attn is REQUIRED here, not optional: every fast-weight model imports
+# flash_attn at module scope, so nothing in flame/custom_models/ imports
+# without it. It cannot live in this file because it needs torch present at
+# build time, which pip's build isolation prevents.
+#
+# Reference environment, verified working:
+#   Python 3.10, CUDA 12.8, torch 2.8.0+cu128, triton 3.4.0
+
+# --- training stack ---
+torchtitan>=0.1,<0.2     # verified with 0.1.0; 0.2.x needs torch>=2.9 varlen APIs
+tyro>=0.8                # torchtitan 0.1.0 imports it but does not declare it
+tensorboard>=2.16        # torchtitan 0.1.0 metrics backend, also undeclared
+torchdata>=0.8
+flash-linear-attention>=0.5,<0.6   # `fla`; verified with 0.5.0
+transformers>=4.45
+datasets>=2.19           # arrow-shard loading
+safetensors>=0.4
+einops>=0.8
+numpy>=1.26
+packaging>=23.0
+psutil>=5.9
+wandb>=0.16
+pyyaml>=6.0              # launch/train.sh reads datasets.yaml
+tomli>=2.0; python_version < "3.11"   # flame/config_manager.py TOML loading
+
+# --- version caveat -------------------------------------------------------
+# The original experiments did not record torchtitan / flash-linear-attention
+# versions. Verified importable with the reference environment: torchtitan
+# 0.1.0 and flash-linear-attention 0.5.0 (torchtitan 0.2.x is incompatible
+# with torch 2.8 — it requires the torch>=2.9 varlen attention APIs).
+
+# --- flash-attn build prerequisites ---------------------------------------
+# `pip install flash-attn --no-build-isolation` runs flash-attn's setup.py in
+# YOUR environment, so its build tooling must already be present; a fresh venv
+# has neither and fails with "No module named 'wheel'".
+wheel>=0.43
+ninja>=1.11

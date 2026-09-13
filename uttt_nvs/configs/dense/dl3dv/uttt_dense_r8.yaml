@@ -1,0 +1,84 @@
+exp_name: uttt_dense_r8_dl3dv
+
+model:
+  class_name: uttt_nvs.models.lvsm.Images2latent3D
+
+  image_size: 256
+  patch_size: 8
+
+  act_ckpt: False
+
+  dim: 512
+  layers: 8
+
+  block_config:
+    type: uttt_nvs.models.uttt_dense_block.MemoryModel
+    params:
+      attn_head_dim: 64
+      fw_head_dim: 64
+      inter_multi: 3
+      fw_inter_multi: 8
+      l2_norm: True
+      use_muon: False
+      v_gap: null
+      aggregate_write: True
+
+training:
+  # general settings
+  torch_compile: False
+  # Total batch size actually used for this experiment. The trainer
+  # computes batch_size_per_gpu * world_size * grad_accum_steps and
+  # refuses to start if it does not match, because the GPU count comes
+  # from the launcher and is invisible to this file.
+  total_batch_size: 128
+  grad_accum_steps: 1
+  grad_clip_norm: 1.0
+  may_skip_gradnorm_after: 1000
+  grad_checkpoint_every: 1
+
+  # dataset
+  dataset_name: "uttt_nvs.data.loader.NVSDataset"
+  # Data: DL3DV-10K (training split).
+  # Fill in uttt_nvs/datasets.yaml once (see datasets.example.yaml); this key
+  # selects the block to read. To override for a one-off run, uncomment
+  # dataset_path / eval_dataset_path below.
+  dataset: dl3dv
+  # dataset_path: "PATH/TO/dl3dv_train_manifest.txt"
+  num_views: 12
+  eval_num_views: 24
+
+  # data loader
+  batch_size_per_gpu: 32
+  num_workers: 16
+  prefetch_factor: 4
+
+  # supervision
+  lpips_loss_weight: 0.0
+
+  # AdamW optimizer and scheduler
+  max_fwdbwd_passes: 20000
+  lr: 0.0004
+  beta1: 0.9
+  beta2: 0.95
+  weight_decay: 0.05
+  warmup: 2500
+  allowed_gradnorm_factor: 5
+
+  # visualization
+  vis_every: 1000
+
+  # terminal
+  print_every: 20
+
+  # checkpoint
+  checkpoint_every: 500
+
+  # wandb
+  # W&B auth: copy api_keys.example.yaml to api_keys.yaml, or export WANDB_API_KEY
+  api_key_path: "uttt_nvs/api_keys.yaml"
+  wandb_log_every: 50
+  wandb_offline: false
+
+# inference
+# Evaluation data: DL3DV benchmark (140 test scenes).
+# eval_dataset_path: "PATH/TO/dl3dv_benchmark_manifest.txt"

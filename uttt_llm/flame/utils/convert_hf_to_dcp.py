@@ -1,0 +1,42 @@
+# -*- coding: utf-8 -*-
+# Copyright (c) 2023-2025, Songlin Yang, Yu Zhang
+
+import argparse
+from pathlib import Path
+
+import torch
+import torch.distributed.checkpoint as DCP
+from transformers import AutoModelForCausalLM
+
+import fla  # noqa
+from torchtitan.tools.logging import init_logger, logger
+
+
+@torch.inference_mode()
+def convert_hf_weights(model: str, checkpoint: str, trust_remote_code: bool = False):
+    logger.info(f"Loading model from {model}")
+    model = AutoModelForCausalLM.from_pretrained(
+        model,
+        trust_remote_code=trust_remote_code,
+    )
+    state_dict = model.state_dict()
+
+    logger.info(f"Writing to DCP at '{checkpoint}'")
+    checkpoint.mkdir(parents=True, exist_ok=True)
+    storage_writer = DCP.filesystem.FileSystemWriter(checkpoint, thread_count=8)
+    DCP.save(state_dict, storage_writer=storage_writer)
+
+
+if __name__ == "__main__":
+    init_logger()
+    parser = argparse.ArgumentParser(description="Convert huggingface-style model weights to DCP format.")
+    parser.add_argument("--model", type=str, required=True)
+    parser.add_argument("--checkpoint", type=Path, required=True)
+    parser.add_argument(
+        "--trust-remote-code",
+        action="store_true",
+        help="Allow custom Hugging Face model code while loading the source model.",
+    )
+    args = parser.parse_args()
+
+    convert_hf_weights(args.model, args.checkpoint, args.trust_remote_code)

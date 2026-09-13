@@ -1,0 +1,82 @@
+# Training job config, 124M @ 32K context.
+# Per-device batch 4 x 8 GPUs = global batch 32 (as published).
+# data_files must point at pre-processed long-data-collections arrow shards;
+# see datasets.example.yaml and flame/utils/preprocess.py.
+[model]
+config = "./transformer-1.3B-100B"
+tokenizer_path = "fla-hub/transformer-1.3B-100B"
+
+[job]
+dump_folder = "exp"
+print_args = true
+
+[training]
+batch_size = 4
+seq_len = 32768
+context_len = 32768
+gradient_accumulation_steps = 1
+# The paper experiments are defined at a fixed GLOBAL batch of 32 sequences.
+# The trainer multiplies batch_size x data-parallel degree x grad-accum and
+# refuses to start on a mismatch, because the GPU count comes from the
+# launcher and is invisible to this file.
+expected_global_batch_size = 32
+steps = 10240
+max_norm = 1.0
+skip_nan_inf = true
+data_parallel_replicate_degree = 1
+data_parallel_shard_degree = -1
+tensor_parallel_degree = 1
+compile = false
+data_files = "PATH/TO/long-data-collections-arrow/data-*.arrow"
+dataset = "arrow"
+dataset_name = "default"
+dataset_split = "train"
+num_workers = 4
+pin_memory = false
+persistent_workers = false
+prefetch_factor = 2
+seed = 42
+varlen = false
+fsdp_reshard_after_forward = "never"
+
+[optimizer]
+name = "AdamW"
+eps = 1e-15
+lr = 1e-3
+
+[lr_scheduler]
+warmup_steps = 1024
+decay_type = "cosine"
+lr_min = 0.1
+
+[checkpoint]
+enable_checkpoint = true
+folder = "checkpoint"
+interval_type = "steps"
+interval = 2048
+model_weights_only = false
+export_dtype = "float32"
+async_mode = "disabled"    # ["disabled", "async", "async_with_pinned_mem"]
+keep_latest_k = 2
+load_step = -1
+
+[profiling]
+enable_profiling = true
+save_traces_folder = "profile_trace"
+profile_freq = 512
+
+[metrics]
+log_freq = 10
+enable_wandb = true
+
+[experimental]
+context_parallel_degree = 1
+pipeline_parallel_degree = 1
+
+[float8]
+enable_fsdp_float8_all_gather = false
+precompute_float8_dynamic_scale_for_fsdp = false
+
+[activation_checkpoint]
+mode = "none"
+selective_ac_option = "1"

@@ -1,0 +1,367 @@
+version: 1
+
+defaults:
+  checkpoint_root: /PATH/TO/CHECKPOINTS
+  output_root: /PATH/TO/EVAL_OUTPUTS
+  wandb:
+    entity: YOUR_WANDB_ENTITY
+    project: YOUR_WANDB_PROJECT
+  seed: 9595
+  num_views: 24
+
+datasets:
+  - id: gso
+    display_name: Objaverse/GSO
+    local_manifest: /PATH/TO/MANIFESTS/gso_v0.1_instant3d_test_localssd.txt
+    view_manifest: /PATH/TO/MANIFESTS/gso_views_seed9595_v24.json
+    expected_scenes: 1019
+    expected_rows: 23437
+  - id: dl3dv
+    display_name: DL3DV
+    local_manifest: /PATH/TO/MANIFESTS/dl3dv10k_benchmark_local.txt
+    view_manifest: /PATH/TO/MANIFESTS/dl3dv_views_seed9595_v24.json
+    expected_scenes: 140
+    expected_rows: 3220
+
+experiments:
+  - id: gso_ttt_dense
+    dataset: gso
+    model: ttt_dense
+    paper_model: TTT-Dense
+    config: uttt_nvs/configs/ownership/obj/ttt_dense.yaml
+    checkpoint: object/ttt_dense/checkpoint.pt
+    checkpoint_step: 24476
+    checkpoint_impl: ttt_dense
+    group: ttt_dense
+    display_name: TTT-Dense
+  - id: gso_ttt_moe_e4a1
+    dataset: gso
+    model: ttt_moe_e4a1
+    paper_model: TTT-MoE
+    config: uttt_nvs/configs/ownership/obj/ttt_moe_e4a1.yaml
+    checkpoint: object/ttt_moe_e4a1/checkpoint.pt
+    checkpoint_step: 24476
+    checkpoint_impl: ttt_moe
+    group: ttt_moe
+    display_name: TTT-MoE-e4a1
+  - id: gso_ttt_moe_e8a1
+    dataset: gso
+    model: ttt_moe_e8a1
+    paper_model: TTT-MoE
+    config: uttt_nvs/configs/ownership/obj/ttt_moe_e8a1.yaml
+    checkpoint: object/ttt_moe_e8a1/checkpoint.pt
+    checkpoint_step: 24476
+    checkpoint_impl: ttt_moe
+    group: ttt_moe
+    display_name: TTT-MoE-e8a1
+  - id: gso_uttt_dense_r1
+    dataset: gso
+    model: uttt_dense_r1
+    paper_model: uTTT-Dense
+    config: uttt_nvs/configs/dense/obj/uttt_dense_r1.yaml
+    checkpoint: object/uttt_dense_r1/checkpoint.pt
+    checkpoint_step: 24476
+    checkpoint_impl: uttt_dense
+    group: uttt_dense
+    display_name: uTTT-Dense-r1
+  - id: gso_uttt_dense_r2
+    dataset: gso
+    model: uttt_dense_r2
+    paper_model: uTTT-Dense
+    config: uttt_nvs/configs/dense/obj/uttt_dense_r2.yaml
+    checkpoint: object/uttt_dense_r2/checkpoint.pt
+    checkpoint_step: 24476
+    checkpoint_impl: uttt_dense
+    group: uttt_dense
+    display_name: uTTT-Dense-r2
+  - id: gso_uttt_dense_r4
+    dataset: gso
+    model: uttt_dense_r4
+    paper_model: uTTT-Dense
+    config: uttt_nvs/configs/dense/obj/uttt_dense_r4.yaml
+    checkpoint: object/uttt_dense_r4/checkpoint.pt
+    checkpoint_step: 24476
+    checkpoint_impl: uttt_dense
+    group: uttt_dense
+    display_name: uTTT-Dense-r4
+  - id: gso_uttt_dense_r8
+    dataset: gso
+    model: uttt_dense_r8
+    paper_model: uTTT-Dense
+    config: uttt_nvs/configs/dense/obj/uttt_dense_r8.yaml
+    checkpoint: object/uttt_dense_r8/checkpoint.pt
+    checkpoint_step: 24476
+    checkpoint_impl: uttt_dense
+    group: uttt_dense
+    display_name: uTTT-Dense-r8
+  - id: gso_uttt_moe_e8a1
+    dataset: gso
+    model: uttt_moe_e8a1
+    paper_model: uTTT-MoE
+    config: uttt_nvs/configs/capacity/obj/uttt_moe_e8a1.yaml
+    checkpoint: object/uttt_moe_e8a1/checkpoint.pt
+    checkpoint_step: 24476
+    checkpoint_impl: uttt_moe
+    group: uttt_moe
+    display_name: uTTT-MoE-e8a1
+  - id: gso_uttt_moe_e16a1
+    dataset: gso
+    model: uttt_moe_e16a1
+    paper_model: uTTT-MoE
+    config: uttt_nvs/configs/capacity/obj/uttt_moe_e16a1.yaml
+    checkpoint: object/uttt_moe_e16a1/checkpoint.pt
+    checkpoint_step: 24476
+    checkpoint_impl: uttt_moe
+    group: uttt_moe
+    display_name: uTTT-MoE-e16a1
+  - id: gso_uttt_moe_e32a1
+    dataset: gso
+    model: uttt_moe_e32a1
+    paper_model: uTTT-MoE
+    config: uttt_nvs/configs/capacity/obj/uttt_moe_e32a1.yaml
+    checkpoint: object/uttt_moe_e32a1/checkpoint.pt
+    checkpoint_step: 24476
+    checkpoint_impl: uttt_moe
+    group: uttt_moe
+    display_name: uTTT-MoE-e32a1
+  - id: gso_uttt_moe_e64a1
+    dataset: gso
+    model: uttt_moe_e64a1
+    paper_model: uTTT-MoE
+    config: uttt_nvs/configs/capacity/obj/uttt_moe_e64a1.yaml
+    checkpoint: object/uttt_moe_e64a1/checkpoint.pt
+    checkpoint_step: 24476
+    checkpoint_impl: uttt_moe
+    group: uttt_moe
+    display_name: uTTT-MoE-e64a1
+  - id: gso_uttt_moe_e32a2
+    dataset: gso
+    model: uttt_moe_e32a2
+    paper_model: uTTT-MoE
+    config: uttt_nvs/configs/width/obj/uttt_moe_e32a2.yaml
+    checkpoint: object/uttt_moe_e32a2/checkpoint.pt
+    checkpoint_step: 24476
+    checkpoint_impl: uttt_moe
+    group: uttt_moe
+    display_name: uTTT-MoE-e32a2
+  - id: gso_uttt_moe_e32a4
+    dataset: gso
+    model: uttt_moe_e32a4
+    paper_model: uTTT-MoE
+    config: uttt_nvs/configs/width/obj/uttt_moe_e32a4.yaml
+    checkpoint: object/uttt_moe_e32a4/checkpoint.pt
+    checkpoint_step: 24476
+    checkpoint_impl: uttt_moe
+    group: uttt_moe
+    display_name: uTTT-MoE-e32a4
+  - id: gso_uttt_moe_e32a8
+    dataset: gso
+    model: uttt_moe_e32a8
+    paper_model: uTTT-MoE
+    config: uttt_nvs/configs/width/obj/uttt_moe_e32a8.yaml
+    checkpoint: object/uttt_moe_e32a8/checkpoint.pt
+    checkpoint_step: 24476
+    checkpoint_impl: uttt_moe
+    group: uttt_moe
+    display_name: uTTT-MoE-e32a8
+  - id: gso_uttt_moe_e64a2
+    dataset: gso
+    model: uttt_moe_e64a2
+    paper_model: uTTT-MoE
+    config: uttt_nvs/configs/width/obj/uttt_moe_e64a2.yaml
+    checkpoint: object/uttt_moe_e64a2/checkpoint.pt
+    checkpoint_step: 24476
+    checkpoint_impl: uttt_moe
+    group: uttt_moe
+    display_name: uTTT-MoE-e64a2
+  - id: gso_uttt_moe_e64a4
+    dataset: gso
+    model: uttt_moe_e64a4
+    paper_model: uTTT-MoE
+    config: uttt_nvs/configs/width/obj/uttt_moe_e64a4.yaml
+    checkpoint: object/uttt_moe_e64a4/checkpoint.pt
+    checkpoint_step: 24476
+    checkpoint_impl: uttt_moe
+    group: uttt_moe
+    display_name: uTTT-MoE-e64a4
+  - id: gso_uttt_moe_e64a8
+    dataset: gso
+    model: uttt_moe_e64a8
+    paper_model: uTTT-MoE
+    config: uttt_nvs/configs/width/obj/uttt_moe_e64a8.yaml
+    checkpoint: object/uttt_moe_e64a8/checkpoint.pt
+    checkpoint_step: 24476
+    checkpoint_impl: uttt_moe
+    group: uttt_moe
+    display_name: uTTT-MoE-e64a8
+
+  - id: dl3dv_ttt_dense
+    dataset: dl3dv
+    model: ttt_dense
+    paper_model: TTT-Dense
+    config: uttt_nvs/configs/ownership/dl3dv/ttt_dense.yaml
+    checkpoint: dl3dv/ttt_dense/checkpoint.pt
+    checkpoint_step: 20046
+    checkpoint_impl: ttt_dense
+    group: ttt_dense
+    display_name: TTT-Dense
+  - id: dl3dv_ttt_moe_e4a1
+    dataset: dl3dv
+    model: ttt_moe_e4a1
+    paper_model: TTT-MoE
+    config: uttt_nvs/configs/ownership/dl3dv/ttt_moe_e4a1.yaml
+    checkpoint: dl3dv/ttt_moe_e4a1/checkpoint.pt
+    checkpoint_step: 20046
+    checkpoint_impl: ttt_moe_alt
+    group: ttt_moe
+    display_name: TTT-MoE-e4a1
+  - id: dl3dv_ttt_moe_e8a1
+    dataset: dl3dv
+    model: ttt_moe_e8a1
+    paper_model: TTT-MoE
+    config: uttt_nvs/configs/ownership/dl3dv/ttt_moe_e8a1.yaml
+    checkpoint: dl3dv/ttt_moe_e8a1/checkpoint.pt
+    checkpoint_step: 20046
+    checkpoint_impl: ttt_moe_alt
+    group: ttt_moe
+    display_name: TTT-MoE-e8a1
+  - id: dl3dv_uttt_dense_r1
+    dataset: dl3dv
+    model: uttt_dense_r1
+    paper_model: uTTT-Dense
+    config: uttt_nvs/configs/dense/dl3dv/uttt_dense_r1.yaml
+    checkpoint: dl3dv/uttt_dense_r1/checkpoint.pt
+    checkpoint_step: 20046
+    checkpoint_impl: uttt_dense
+    group: uttt_dense
+    display_name: uTTT-Dense-r1
+  - id: dl3dv_uttt_dense_r2
+    dataset: dl3dv
+    model: uttt_dense_r2
+    paper_model: uTTT-Dense
+    config: uttt_nvs/configs/dense/dl3dv/uttt_dense_r2.yaml
+    checkpoint: dl3dv/uttt_dense_r2/checkpoint.pt
+    checkpoint_step: 20046
+    checkpoint_impl: uttt_dense
+    group: uttt_dense
+    display_name: uTTT-Dense-r2
+  - id: dl3dv_uttt_dense_r4
+    dataset: dl3dv
+    model: uttt_dense_r4
+    paper_model: uTTT-Dense
+    config: uttt_nvs/configs/dense/dl3dv/uttt_dense_r4.yaml
+    checkpoint: dl3dv/uttt_dense_r4/checkpoint.pt
+    checkpoint_step: 20046
+    checkpoint_impl: uttt_dense
+    group: uttt_dense
+    display_name: uTTT-Dense-r4
+  - id: dl3dv_uttt_dense_r8
+    dataset: dl3dv
+    model: uttt_dense_r8
+    paper_model: uTTT-Dense
+    config: uttt_nvs/configs/dense/dl3dv/uttt_dense_r8.yaml
+    checkpoint: dl3dv/uttt_dense_r8/checkpoint.pt
+    checkpoint_step: 20046
+    checkpoint_impl: uttt_dense
+    group: uttt_dense
+    display_name: uTTT-Dense-r8
+  - id: dl3dv_uttt_moe_e8a1
+    dataset: dl3dv
+    model: uttt_moe_e8a1
+    paper_model: uTTT-MoE
+    config: uttt_nvs/configs/capacity/dl3dv/uttt_moe_e8a1.yaml
+    checkpoint: dl3dv/uttt_moe_e8a1/checkpoint.pt
+    checkpoint_step: 20046
+    checkpoint_impl: uttt_moe
+    group: uttt_moe
+    display_name: uTTT-MoE-e8a1
+  - id: dl3dv_uttt_moe_e16a1
+    dataset: dl3dv
+    model: uttt_moe_e16a1
+    paper_model: uTTT-MoE
+    config: uttt_nvs/configs/capacity/dl3dv/uttt_moe_e16a1.yaml
+    checkpoint: dl3dv/uttt_moe_e16a1/checkpoint.pt
+    checkpoint_step: 20046
+    checkpoint_impl: uttt_moe
+    group: uttt_moe
+    display_name: uTTT-MoE-e16a1
+  - id: dl3dv_uttt_moe_e32a1
+    dataset: dl3dv
+    model: uttt_moe_e32a1
+    paper_model: uTTT-MoE
+    config: uttt_nvs/configs/capacity/dl3dv/uttt_moe_e32a1.yaml
+    checkpoint: dl3dv/uttt_moe_e32a1/checkpoint.pt
+    checkpoint_step: 20046
+    checkpoint_impl: uttt_moe
+    group: uttt_moe
+    display_name: uTTT-MoE-e32a1
+  - id: dl3dv_uttt_moe_e64a1
+    dataset: dl3dv
+    model: uttt_moe_e64a1
+    paper_model: uTTT-MoE
+    config: uttt_nvs/configs/capacity/dl3dv/uttt_moe_e64a1.yaml
+    checkpoint: dl3dv/uttt_moe_e64a1/checkpoint.pt
+    checkpoint_step: 20046
+    checkpoint_impl: uttt_moe
+    group: uttt_moe
+    display_name: uTTT-MoE-e64a1
+  - id: dl3dv_uttt_moe_e32a2
+    dataset: dl3dv
+    model: uttt_moe_e32a2
+    paper_model: uTTT-MoE
+    config: uttt_nvs/configs/width/dl3dv/uttt_moe_e32a2.yaml
+    checkpoint: dl3dv/uttt_moe_e32a2/checkpoint.pt
+    checkpoint_step: 20046
+    checkpoint_impl: uttt_moe
+    group: uttt_moe
+    display_name: uTTT-MoE-e32a2
+  - id: dl3dv_uttt_moe_e32a4
+    dataset: dl3dv
+    model: uttt_moe_e32a4
+    paper_model: uTTT-MoE
+    config: uttt_nvs/configs/width/dl3dv/uttt_moe_e32a4.yaml
+    checkpoint: dl3dv/uttt_moe_e32a4/checkpoint.pt
+    checkpoint_step: 20046
+    checkpoint_impl: uttt_moe
+    group: uttt_moe
+    display_name: uTTT-MoE-e32a4
+  - id: dl3dv_uttt_moe_e32a8
+    dataset: dl3dv
+    model: uttt_moe_e32a8
+    paper_model: uTTT-MoE
+    config: uttt_nvs/configs/width/dl3dv/uttt_moe_e32a8.yaml
+    checkpoint: dl3dv/uttt_moe_e32a8/checkpoint.pt
+    checkpoint_step: 20046
+    checkpoint_impl: uttt_moe
+    group: uttt_moe
+    display_name: uTTT-MoE-e32a8
+  - id: dl3dv_uttt_moe_e64a2
+    dataset: dl3dv
+    model: uttt_moe_e64a2
+    paper_model: uTTT-MoE
+    config: uttt_nvs/configs/width/dl3dv/uttt_moe_e64a2.yaml
+    checkpoint: dl3dv/uttt_moe_e64a2/checkpoint.pt
+    checkpoint_step: 20046
+    checkpoint_impl: uttt_moe
+    group: uttt_moe
+    display_name: uTTT-MoE-e64a2
+  - id: dl3dv_uttt_moe_e64a4
+    dataset: dl3dv
+    model: uttt_moe_e64a4
+    paper_model: uTTT-MoE
+    config: uttt_nvs/configs/width/dl3dv/uttt_moe_e64a4.yaml
+    checkpoint: dl3dv/uttt_moe_e64a4/checkpoint.pt
+    checkpoint_step: 20046
+    checkpoint_impl: uttt_moe
+    group: uttt_moe
+    display_name: uTTT-MoE-e64a4
+  - id: dl3dv_uttt_moe_e64a8
+    dataset: dl3dv
+    model: uttt_moe_e64a8
+    paper_model: uTTT-MoE
+    config: uttt_nvs/configs/width/dl3dv/uttt_moe_e64a8.yaml
+    checkpoint: dl3dv/uttt_moe_e64a8/checkpoint.pt
+    checkpoint_step: 20046
+    checkpoint_impl: uttt_moe
+    group: uttt_moe
+    display_name: uTTT-MoE-e64a8

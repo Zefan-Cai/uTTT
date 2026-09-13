@@ -1,0 +1,8 @@
+# Copy this file to `api_keys.yaml` and fill in your key:
+#
+#     cp uttt_nvs/api_keys.example.yaml uttt_nvs/api_keys.yaml
+#
+# `api_keys.yaml` is git-ignored so your key is never committed.
+# Alternatively, export WANDB_API_KEY and leave this file as is.
+
+wandb: ""   # your Weights & Biases API key, from https://wandb.ai/authorize

@@ -1,0 +1,22 @@
+# Dataset manifest registry.
+#
+#     cp uttt_nvs/datasets.example.yaml uttt_nvs/datasets.yaml
+#
+# Fill in the paths once here and every config picks them up -- you do not need
+# to edit the 58 files under configs/. `datasets.yaml` is git-ignored.
+#
+# Each value is a *manifest*: a text file with one camera-JSON path per line.
+# Entries may be local paths, s3:// objects or gs:// blobs, and may be mixed.
+# See uttt_nvs/data/README.md for the format and for build_manifest.py.
+#
+# A config selects a block below with `training.dataset: obj` or `dl3dv`.
+
+obj:
+  # Objaverse renderings for training, Google Scanned Objects for evaluation.
+  train: PATH/TO/objaverse_train_manifest.txt
+  eval:  PATH/TO/gso_test_manifest.txt
+
+dl3dv:
+  # DL3DV-10K training split, DL3DV benchmark (140 scenes) for evaluation.
+  train: PATH/TO/dl3dv_train_manifest.txt
+  eval:  PATH/TO/dl3dv_benchmark_manifest.txt

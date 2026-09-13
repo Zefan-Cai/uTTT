@@ -1,0 +1,21 @@
+# Dataset registry. Copy to datasets.yaml (git-ignored) and fill in once.
+#
+#     cp uttt_llm/datasets.example.yaml uttt_llm/datasets.yaml
+#
+# Every entry points at *pre-processed arrow shards*, produced with
+# flame/utils/preprocess.py from the official upstream datasets. This
+# repository redistributes no data and endorses no mirror.
+
+train:
+  # Long-Data-Collections (togethercomputer/Long-Data-Collections on HF),
+  # tokenized and sharded to arrow:
+  files: PATH/TO/long-data-collections-arrow/data-*.arrow
+
+ptl:
+  # Book-3 from The Pile, 32K-token rows, for per-token-loss evaluation:
+  files: PATH/TO/book3-arrow/data-*.arrow
+
+ruler:
+  # RULER working directory: synthetic-task cache plus downloaded base assets
+  # (built by eval/ruler/prewarm_ruler_cache.py):
+  cache: PATH/TO/ruler_cache

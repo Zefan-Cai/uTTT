@@ -1,0 +1,16 @@
+__pycache__/
+*.pyc
+*.pt
+*.ckpt
+api_keys.yaml
+.env
+wandb/
+outputs/
+datasets.yaml
+runs/
+uttt_llm/runs/
+experiments/
+.venv/
+.pytest_cache/
+.coverage
+htmlcov/
