@@ -1,13 +1,25 @@
-# uTTT — Universal Test-Time Training
+<div align="center">
 
-**[Project page](https://zefan-cai.github.io/uTTT.github.io/)** ·
-**[Paper (arXiv:2610.05484)](https://arxiv.org/abs/2610.05484)** ·
-[Documentation](docs/README.md) · [中文指南](docs/README.zh-CN.md) ·
-[Configuration catalog](docs/configuration-catalog.md)
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/assets/uttt_wordmark_dark.png">
+  <img src="docs/assets/uttt_wordmark.png" alt="uTTT" height="96">
+</picture>
 
-<p align="center">
-  <img src="docs/assets/uttt_main_figure.png" alt="Layer-private, layer-local and universal fast weights" width="92%">
-</p>
+# Universal Test-Time Training
+
+**Zefan Cai, Qinzhe Hu, Ziqiao Ma, Hao Tan, Junjie Hu**
+
+<a href="https://arxiv.org/abs/2610.05484"><img src="https://img.shields.io/badge/arXiv-2610.05484-b31b1b.svg" alt="arXiv"></a>
+<a href="https://zefan-cai.github.io/uTTT.github.io/"><img src="https://img.shields.io/badge/Project-Page-1f6feb.svg" alt="Project page"></a>
+<a href="https://arxiv.org/pdf/2610.05484"><img src="https://img.shields.io/badge/Paper-PDF-6e5494.svg" alt="PDF"></a>
+<a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-2ea44f.svg" alt="MIT license"></a>
+<a href="https://github.com/Zefan-Cai/uTTT/actions/workflows/ci.yml"><img src="https://github.com/Zefan-Cai/uTTT/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
+
+[Documentation](docs/README.md) · [中文指南](docs/README.zh-CN.md) · [Configuration catalog](docs/configuration-catalog.md)
+
+<img src="docs/assets/uttt_main_figure.png" alt="Layer-private, layer-local and universal fast weights" width="92%">
+
+</div>
 
 Test-Time Training compresses context into fast weights, and existing designs
 make those fast weights **layer-private**: every layer owns a state no other
