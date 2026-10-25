@@ -5,6 +5,12 @@
 # Every entry points at *pre-processed arrow shards*, produced with
 # flame/utils/preprocess.py from the official upstream datasets. This
 # repository redistributes no data and endorses no mirror.
+#
+# Only `train.files` is read by code (launch/train.sh forwards it as
+# --training.data_files). The `ptl` and `ruler` blocks below are notes for
+# yourself: nothing reads them. PTL takes its shards from `training.data_files`
+# in configs/exp/eval_ptl.toml, and RULER keeps its assets in the HF datasets
+# cache (HF_HOME / HF_DATASETS_CACHE), not in a path from this file.
 
 train:
   # Long-Data-Collections (togethercomputer/Long-Data-Collections on HF),
@@ -12,10 +18,11 @@ train:
   files: PATH/TO/long-data-collections-arrow/data-*.arrow
 
 ptl:
-  # Book-3 from The Pile, 32K-token rows, for per-token-loss evaluation:
-  files: PATH/TO/book3-arrow/data-*.arrow
+  # Not read by any script. Books3 from The Pile, 32K-token rows, for
+  # per-token-loss evaluation; copy the glob into configs/exp/eval_ptl.toml:
+  files: PATH/TO/books3-arrow/data-*.arrow
 
 ruler:
-  # RULER working directory: synthetic-task cache plus downloaded base assets
-  # (built by eval/ruler/prewarm_ruler_cache.py):
+  # Not read by any script. eval/ruler/prewarm_ruler_cache.py writes its task
+  # assets to the HF datasets cache and a manifest JSON to --output:
   cache: PATH/TO/ruler_cache

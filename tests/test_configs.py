@@ -10,9 +10,9 @@ from tools.check_configs import ROOT, inspect_configs, llm_model_types, validate
 def test_entire_release_is_statically_valid():
     entries, errors = inspect_configs()
     assert not errors, "\n".join(errors)
-    assert len(entries) == 124
-    assert sum(path.suffix == ".yaml" for path, config in entries) == 64
-    assert sum(path.suffix == ".json" for path, config in entries) == 57
+    assert len(entries) == 143
+    assert sum(path.suffix == ".yaml" for path, config in entries) == 73
+    assert sum(path.suffix == ".json" for path, config in entries) == 67
 
 
 @pytest.fixture

@@ -36,22 +36,31 @@ Steps are the configured forward/backward pass limit, before optional epoch roun
 | [ownership/obj/ttt_moe_e4a1.yaml](../uttt_nvs/configs/ownership/obj/ttt_moe_e4a1.yaml) | `uttt_moe_block` | per_block | 4 / 1 | 256² | 8 × 512 | 128 | 4 | 20,000 |
 | [ownership/obj/ttt_moe_e8a1.yaml](../uttt_nvs/configs/ownership/obj/ttt_moe_e8a1.yaml) | `uttt_moe_block` | per_block | 8 / 1 | 256² | 8 × 512 | 128 | 4 | 20,000 |
 | [ownership/obj/uttt_moe_e64a1.yaml](../uttt_nvs/configs/ownership/obj/uttt_moe_e64a1.yaml) | `uttt_moe_block` | shared | 64 / 1 | 256² | 8 × 512 | 128 | 4 | 20,000 |
-| [scale/dl3dv/uttt_moe_large_128.yaml](../uttt_nvs/configs/scale/dl3dv/uttt_moe_large_128.yaml) | `uttt_moe_block` | shared | 64 / 1 | 128² | 24 × 768 | 768 | 64 | 120,000 |
-| [scale/dl3dv/uttt_moe_large_256.yaml](../uttt_nvs/configs/scale/dl3dv/uttt_moe_large_256.yaml) | `uttt_moe_block` | shared | 64 / 1 | 256² | 24 × 768 | 256 | 64 | 12,000 |
-| [scale/dl3dv/uttt_moe_large_512.yaml](../uttt_nvs/configs/scale/dl3dv/uttt_moe_large_512.yaml) | `uttt_moe_block` | shared | 64 / 1 | 512² | 24 × 768 | 64 | 64 | 7,000 |
-| [scale/obj/uttt_moe_large_1024.yaml](../uttt_nvs/configs/scale/obj/uttt_moe_large_1024.yaml) | `uttt_moe_block` | shared | 64 / 1 | 1024² | 24 × 768 | 64 | 64 | 4,500 |
-| [scale/obj/uttt_moe_large_256.yaml](../uttt_nvs/configs/scale/obj/uttt_moe_large_256.yaml) | `uttt_moe_block` | shared | 64 / 1 | 256² | 24 × 768 | 512 | 64 | 81,038 |
-| [scale/obj/uttt_moe_large_512.yaml](../uttt_nvs/configs/scale/obj/uttt_moe_large_512.yaml) | `uttt_moe_block` | shared | 64 / 1 | 512² | 24 × 768 | 128 | 64 | 70,000 |
+| [reference/dl3dv/deltanet.yaml](../uttt_nvs/configs/reference/dl3dv/deltanet.yaml) | `deltanet_block` | see block | — | 256² | 8 × 512 | 128 | 8 | 20,000 |
+| [reference/dl3dv/gated_deltanet.yaml](../uttt_nvs/configs/reference/dl3dv/gated_deltanet.yaml) | `gated_deltanet_block` | see block | — | 256² | 8 × 512 | 128 | 8 | 20,000 |
+| [reference/obj/deltanet.yaml](../uttt_nvs/configs/reference/obj/deltanet.yaml) | `deltanet_block` | see block | — | 256² | 8 × 512 | 128 | 8 | 20,000 |
+| [reference/obj/gated_deltanet.yaml](../uttt_nvs/configs/reference/obj/gated_deltanet.yaml) | `gated_deltanet_block` | see block | — | 256² | 8 × 512 | 128 | 8 | 20,000 |
+| [scale/obj/uttt_moe_large_1024.yaml](../uttt_nvs/configs/scale/obj/uttt_moe_large_1024.yaml) | `uttt_moe_block` | shared | 96 / 1 | 1024² | 24 × 768 | 64 | 64 | 4,500 |
+| [scale/obj/uttt_moe_large_256.yaml](../uttt_nvs/configs/scale/obj/uttt_moe_large_256.yaml) | `uttt_moe_block` | shared | 96 / 1 | 256² | 24 × 768 | 512 | 64 | 81,038 |
+| [scale/obj/uttt_moe_large_512.yaml](../uttt_nvs/configs/scale/obj/uttt_moe_large_512.yaml) | `uttt_moe_block` | shared | 96 / 1 | 512² | 24 × 768 | 128 | 64 | 70,000 |
 | [schedule/dl3dv/uttt_moe_e64a1.yaml](../uttt_nvs/configs/schedule/dl3dv/uttt_moe_e64a1.yaml) | `uttt_moe_block` | shared | 64 / 1 | 256² | 8 × 512 | 128 | 4 | 20,000 |
 | [schedule/dl3dv/uttt_moe_e64a1_chained.yaml](../uttt_nvs/configs/schedule/dl3dv/uttt_moe_e64a1_chained.yaml) | `uttt_moe_block` | shared | 64 / 1 | 256² | 8 × 512 | 128 | 4 | 20,000 |
 | [schedule/obj/uttt_moe_e64a1.yaml](../uttt_nvs/configs/schedule/obj/uttt_moe_e64a1.yaml) | `uttt_moe_block` | shared | 64 / 1 | 256² | 8 × 512 | 128 | 4 | 20,000 |
 | [schedule/obj/uttt_moe_e64a1_chained.yaml](../uttt_nvs/configs/schedule/obj/uttt_moe_e64a1_chained.yaml) | `uttt_moe_block` | shared | 64 / 1 | 256² | 8 × 512 | 128 | 4 | 20,000 |
+| [topology/dl3dv/uttt_dense_w1_p2.yaml](../uttt_nvs/configs/topology/dl3dv/uttt_dense_w1_p2.yaml) | `uttt_dense_partitioned` | 2 shared pools | — | 256² | 8 × 512 | 128 | 4 | 20,000 |
+| [topology/dl3dv/uttt_dense_w1_p4.yaml](../uttt_nvs/configs/topology/dl3dv/uttt_dense_w1_p4.yaml) | `uttt_dense_partitioned` | 4 shared pools | — | 256² | 8 × 512 | 128 | 4 | 20,000 |
+| [topology/dl3dv/uttt_dense_w2_p4.yaml](../uttt_nvs/configs/topology/dl3dv/uttt_dense_w2_p4.yaml) | `uttt_dense_partitioned` | 4 shared pools | — | 256² | 8 × 512 | 128 | 4 | 20,000 |
+| [topology/dl3dv/uttt_dense_w4_p2.yaml](../uttt_nvs/configs/topology/dl3dv/uttt_dense_w4_p2.yaml) | `uttt_dense_partitioned` | 2 shared pools | — | 256² | 8 × 512 | 128 | 4 | 20,000 |
 | [topology/dl3dv/uttt_moe_e32a1.yaml](../uttt_nvs/configs/topology/dl3dv/uttt_moe_e32a1.yaml) | `uttt_moe_block` | shared | 32 / 1 | 256² | 8 × 512 | 128 | 4 | 20,000 |
 | [topology/dl3dv/uttt_moe_e64a1.yaml](../uttt_nvs/configs/topology/dl3dv/uttt_moe_e64a1.yaml) | `uttt_moe_block` | shared | 64 / 1 | 256² | 8 × 512 | 128 | 4 | 20,000 |
 | [topology/dl3dv/uttt_moe_p2_e32.yaml](../uttt_nvs/configs/topology/dl3dv/uttt_moe_p2_e32.yaml) | `uttt_moe_partitioned` | 2 shared pools | 32 / 1 | 256² | 8 × 512 | 128 | 4 | 20,000 |
 | [topology/dl3dv/uttt_moe_p2_e64.yaml](../uttt_nvs/configs/topology/dl3dv/uttt_moe_p2_e64.yaml) | `uttt_moe_partitioned` | 2 shared pools | 64 / 1 | 256² | 8 × 512 | 128 | 4 | 20,000 |
 | [topology/dl3dv/uttt_moe_p4_e32.yaml](../uttt_nvs/configs/topology/dl3dv/uttt_moe_p4_e32.yaml) | `uttt_moe_partitioned` | 4 shared pools | 32 / 1 | 256² | 8 × 512 | 128 | 4 | 20,000 |
 | [topology/dl3dv/uttt_moe_p4_e64.yaml](../uttt_nvs/configs/topology/dl3dv/uttt_moe_p4_e64.yaml) | `uttt_moe_partitioned` | 4 shared pools | 64 / 1 | 256² | 8 × 512 | 128 | 4 | 20,000 |
+| [topology/obj/uttt_dense_w1_p2.yaml](../uttt_nvs/configs/topology/obj/uttt_dense_w1_p2.yaml) | `uttt_dense_partitioned` | 2 shared pools | — | 256² | 8 × 512 | 128 | 4 | 20,000 |
+| [topology/obj/uttt_dense_w1_p4.yaml](../uttt_nvs/configs/topology/obj/uttt_dense_w1_p4.yaml) | `uttt_dense_partitioned` | 4 shared pools | — | 256² | 8 × 512 | 128 | 4 | 20,000 |
+| [topology/obj/uttt_dense_w2_p4.yaml](../uttt_nvs/configs/topology/obj/uttt_dense_w2_p4.yaml) | `uttt_dense_partitioned` | 4 shared pools | — | 256² | 8 × 512 | 128 | 4 | 20,000 |
+| [topology/obj/uttt_dense_w4_p2.yaml](../uttt_nvs/configs/topology/obj/uttt_dense_w4_p2.yaml) | `uttt_dense_partitioned` | 2 shared pools | — | 256² | 8 × 512 | 128 | 4 | 20,000 |
 | [topology/obj/uttt_moe_e32a1.yaml](../uttt_nvs/configs/topology/obj/uttt_moe_e32a1.yaml) | `uttt_moe_block` | shared | 32 / 1 | 256² | 8 × 512 | 128 | 4 | 20,000 |
 | [topology/obj/uttt_moe_e64a1.yaml](../uttt_nvs/configs/topology/obj/uttt_moe_e64a1.yaml) | `uttt_moe_block` | shared | 64 / 1 | 256² | 8 × 512 | 128 | 4 | 20,000 |
 | [topology/obj/uttt_moe_p2_e32.yaml](../uttt_nvs/configs/topology/obj/uttt_moe_p2_e32.yaml) | `uttt_moe_partitioned` | 2 shared pools | 32 / 1 | 256² | 8 × 512 | 128 | 4 | 20,000 |
@@ -124,16 +133,26 @@ Architecture JSONs must be paired with a training/evaluation TOML. E/K denotes r
 | [balancing/760M/uttt_moe_e96a1_lossfree_pool_u3e-5_alpha2_agg_poolmean_lr1_full_router_per_layer.json](../uttt_llm/configs/balancing/760M/uttt_moe_e96a1_lossfree_pool_u3e-5_alpha2_agg_poolmean_lr1_full_router_per_layer.json) | `uttt_moe` | 24 × 1536 | 32,768 | 4096 | 96 / 1 | loss_free / 3e-05 |
 | [main/124M/deltanet_swa.json](../uttt_llm/configs/main/124M/deltanet_swa.json) | `deltanet_swa` | 12 × 768 | 32,768 | — | — | default / — |
 | [main/124M/gated_deltanet_swa.json](../uttt_llm/configs/main/124M/gated_deltanet_swa.json) | `gated_deltanet_swa` | 12 × 768 | 32,768 | — | — | default / — |
+| [main/124M/kda_swa.json](../uttt_llm/configs/main/124M/kda_swa.json) | `kda_swa` | 12 × 768 | 32,768 | — | — | default / — |
 | [main/124M/lact.json](../uttt_llm/configs/main/124M/lact.json) | `lact_swiglu` | 12 × 768 | 32,768 | — | — | default / — |
+| [main/124M/mamba2_swa.json](../uttt_llm/configs/main/124M/mamba2_swa.json) | `mamba2_swa` | 12 × 768 | 32,768 | 256 | — | default / — |
+| [main/124M/mom_swa.json](../uttt_llm/configs/main/124M/mom_swa.json) | `mom_swa` | 12 × 768 | 32,768 | — | — | default / — |
 | [main/124M/transformer.json](../uttt_llm/configs/main/124M/transformer.json) | `transformer` | 12 × 768 | 32,768 | — | — | default / — |
 | [main/124M/transformer_swa.json](../uttt_llm/configs/main/124M/transformer_swa.json) | `transformer` | 12 × 768 | 32,768 | — | — | default / — |
 | [main/124M/ttt_dense.json](../uttt_llm/configs/main/124M/ttt_dense.json) | `ttt_dense` | 12 × 768 | 32,768 | 4096 | — | default / — |
 | [main/124M/ttt_moe_lb.json](../uttt_llm/configs/main/124M/ttt_moe_lb.json) | `ttt_moe_lb` | 12 × 768 | 32,768 | 4096 | 4 / 1 | loss_free / 1e-05 |
 | [main/124M/ttt_moe_no_lb.json](../uttt_llm/configs/main/124M/ttt_moe_no_lb.json) | `ttt_moe_no_lb` | 12 × 768 | 32,768 | 4096 | 4 / 1 | default / — |
+| [main/124M/uttt_dense_r1.json](../uttt_llm/configs/main/124M/uttt_dense_r1.json) | `uttt_dense` | 12 × 768 | 32,768 | 4096 | — | default / — |
+| [main/124M/uttt_dense_r2.json](../uttt_llm/configs/main/124M/uttt_dense_r2.json) | `uttt_dense` | 12 × 768 | 32,768 | 4096 | — | default / — |
+| [main/124M/uttt_dense_r4.json](../uttt_llm/configs/main/124M/uttt_dense_r4.json) | `uttt_dense` | 12 × 768 | 32,768 | 4096 | — | default / — |
+| [main/124M/uttt_dense_r6.json](../uttt_llm/configs/main/124M/uttt_dense_r6.json) | `uttt_dense` | 12 × 768 | 32,768 | 4096 | — | default / — |
 | [main/124M/uttt_moe.json](../uttt_llm/configs/main/124M/uttt_moe.json) | `uttt_moe` | 12 × 768 | 32,768 | 4096 | 48 / 1 | loss_free / 3e-05 |
 | [main/760M/deltanet_swa.json](../uttt_llm/configs/main/760M/deltanet_swa.json) | `deltanet_swa` | 24 × 1536 | 32,768 | — | — | default / — |
 | [main/760M/gated_deltanet_swa.json](../uttt_llm/configs/main/760M/gated_deltanet_swa.json) | `gated_deltanet_swa` | 24 × 1536 | 32,768 | — | — | default / — |
+| [main/760M/kda_swa.json](../uttt_llm/configs/main/760M/kda_swa.json) | `kda_swa` | 24 × 1536 | 32,768 | — | — | default / — |
 | [main/760M/lact.json](../uttt_llm/configs/main/760M/lact.json) | `lact_swiglu` | 24 × 1536 | 32,768 | — | — | default / — |
+| [main/760M/mamba2_swa.json](../uttt_llm/configs/main/760M/mamba2_swa.json) | `mamba2_swa` | 24 × 1536 | 32,768 | 256 | — | default / — |
+| [main/760M/mom_swa.json](../uttt_llm/configs/main/760M/mom_swa.json) | `mom_swa` | 24 × 1536 | 32,768 | — | — | default / — |
 | [main/760M/transformer.json](../uttt_llm/configs/main/760M/transformer.json) | `transformer` | 24 × 1536 | 32,768 | — | — | default / — |
 | [main/760M/transformer_swa.json](../uttt_llm/configs/main/760M/transformer_swa.json) | `transformer` | 24 × 1536 | 32,768 | — | — | default / — |
 | [main/760M/ttt_dense.json](../uttt_llm/configs/main/760M/ttt_dense.json) | `ttt_dense` | 24 × 1536 | 32,768 | 4096 | — | default / — |

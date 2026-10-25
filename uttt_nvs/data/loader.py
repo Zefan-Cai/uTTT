@@ -44,6 +44,10 @@ def destroy_gcs_client():
 
 
 def open_s3_file(s3_path):
+    if _S3_CLIENT is None:
+        # Manifest entries may be remote even when the manifest file is local;
+        # (re)build the client lazily inside whichever process reads the entry.
+        build_s3_client()
     file_stream = BytesIO()
     s3_bucket, s3_key = s3_path.replace("s3://", "").split("/", 1)
     _S3_CLIENT.download_fileobj(s3_bucket, s3_key, file_stream, Config=S3_TRANSFER_CONFIG)
@@ -52,6 +56,8 @@ def open_s3_file(s3_path):
 
 
 def open_gcs_file(gcs_path):
+    if _GCS_CLIENT is None:
+        build_gcs_client()
     bucket_name, blob_name = gcs_path[len("gs://"):].split("/", 1)
     blob = _GCS_CLIENT.bucket(bucket_name).blob(blob_name)
     return BytesIO(blob.download_as_bytes(timeout=60))

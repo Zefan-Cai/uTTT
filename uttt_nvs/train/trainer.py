@@ -23,6 +23,8 @@ from torch.distributed import destroy_process_group, init_process_group
 import torch.distributed as dist
 from torch.nn.parallel import DistributedDataParallel as DDP
 from torch.utils.data import DataLoader, DistributedSampler
+
+from uttt_nvs.train.sampler import ResumableDistributedSampler
 from rich import print
 
 from uttt_nvs.train.checkpoint import (
@@ -239,7 +241,7 @@ if ddp_rank == 0:
 
 dataloader_seed_generator = torch.Generator()
 dataloader_seed_generator.manual_seed(95 + ddp_rank)
-datasampler = DistributedSampler(dataset, shuffle=True, drop_last=True)
+datasampler = ResumableDistributedSampler(dataset, shuffle=True, drop_last=True)
 # With drop_last=True a rank that holds fewer samples than one per-GPU batch
 # yields nothing at all, and the training loop dies on a bare StopIteration
 # several hundred lines later. Say so here instead.
@@ -481,6 +483,17 @@ torch.distributed.barrier()
 
 print(f"ddp_rank={ddp_rank}, Starting training loop")
 
+# Resume inside an epoch: rebuild that epoch's permutation and skip the batches
+# this rank has already consumed, instead of replaying the epoch from its start.
+_resume_epoch = fwdbwd_pass_step // job_overview.num_fwdbwd_passes_per_epoch
+_resume_passes = fwdbwd_pass_step % job_overview.num_fwdbwd_passes_per_epoch
+datasampler.set_epoch(_resume_epoch)
+if _resume_passes:
+    datasampler.set_resume_offset(_resume_passes * config.training.batch_size_per_gpu)
+    print(
+        f"ddp_rank={ddp_rank}, Resuming epoch {_resume_epoch} at pass {_resume_passes} "
+        f"(skipping {_resume_passes * config.training.batch_size_per_gpu} samples per rank)"
+    )
 dataloader_iter = iter(dataloader)
 start_fwdbwd_pass_step = fwdbwd_pass_step
 grad_accum_steps = max(int(config.training.get("grad_accum_steps", 1)), 1)
@@ -760,16 +773,6 @@ while fwdbwd_pass_step < job_overview.num_fwdbwd_passes:
 
             # Log metrics on rank 0
             if ddp_rank == 0:
-                if "op2block2info" in result:
-                    try:
-                        wandb_additional_info, html_url = debug_utils.log_op2block2info(result.op2block2info, config.exp_name, fwdbwd_pass_step)
-                        print("See activations plots at: ", html_url)
-                        wandb_dict.update(wandb_additional_info)
-                        wandb_dict["link/activations_html_url"] = wandb.Html(f'<a href="{html_url}">Activations</a>')
-                    except Exception as e:
-                        print(f"Warning: log_op2block2info failed (S3 upload?), skipping: {e}")
-
-
                 wandb.log(
                     wandb_dict,
                     step=fwdbwd_pass_step,

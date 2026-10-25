@@ -7,9 +7,26 @@ import torch
 import torch.distributed as dist
 import torch.distributed.checkpoint as dcp
 from torch.distributed.checkpoint.default_planner import DefaultLoadPlanner
+from torch.distributed.checkpoint.state_dict import get_model_state_dict
 from torchtitan.components.checkpoint import CheckpointManager as TorchTitanCheckpointManager
+from torchtitan.components.checkpoint import ModelWrapper
 from torchtitan.tools.logging import logger
 from torchtitan.tools.utils import GarbageCollection
+
+
+class LiveModelWrapper(ModelWrapper):
+    """ModelWrapper that rebuilds the model state dict at every save instead of reusing the one cached at init.
+
+    torchtitan's ModelWrapper caches get_model_state_dict() when the CheckpointManager is built, which is before
+    FSDP2's lazy init. Lazy init reallocates the padded storage of every uneven (partial) shard, so the cached DTensor
+    of such a shard stops aliasing the trained parameter and every checkpoint saved its initial values: the Mamba-2
+    in_proj (2700 rows on 8 ranks, last shard 334 rows) kept its init C/dt rows in all checkpoints, 2026-09-18
+    (reproduced with a 10-row Linear on 4 ranks). Evenly sharded parameters alias the same storage either way.
+    """
+
+    def state_dict(self) -> dict[str, Any]:
+        self.cache_state_dict = {k: v for sd in map(get_model_state_dict, self.model) for k, v in sd.items()}
+        return self.cache_state_dict
 
 
 class CheckpointManager(TorchTitanCheckpointManager):
@@ -22,6 +39,9 @@ class CheckpointManager(TorchTitanCheckpointManager):
     def __init__(self, *args: Any, job_config: Any, **kwargs: Any) -> None:
         super().__init__(*args, job_config=job_config, **kwargs)
         self.job_config = job_config
+        wrapper = self.states.get("model")
+        if isinstance(wrapper, ModelWrapper) and not isinstance(wrapper, LiveModelWrapper):
+            self.states["model"] = LiveModelWrapper(wrapper.model)
         self._sync_dcp_process_group = None
 
         checkpoint_config = job_config.checkpoint

@@ -18,9 +18,11 @@ torchtitan>=0.1,<0.2     # verified with 0.1.0; 0.2.x needs torch>=2.9 varlen AP
 tyro>=0.8                # torchtitan 0.1.0 imports it but does not declare it
 tensorboard>=2.16        # torchtitan 0.1.0 metrics backend, also undeclared
 torchdata>=0.8
-flash-linear-attention>=0.5,<0.6   # `fla`; verified with 0.5.0
-transformers>=4.45
-datasets>=2.19           # arrow-shard loading
+flash-linear-attention>=0.5.2,<0.6 # `fla`; verified with 0.5.2 (kda_swa/mom_swa/mamba2_swa import fla.ops.kda, fla.layers.mom, fla.layers.mamba2)
+transformers>=4.45,<5    # 4.x pins huggingface_hub<1.0 (see below)
+huggingface_hub>=0.34,<1.0   # transformers 4.x needs <1.0; datasets 5.x needs >=1.31 -> excluded
+datasets>=2.19,<5        # arrow-shard loading; 5.x requires huggingface_hub>=1.31 and breaks
+                         # `import transformers` / torchtitan / flame.utils.preprocess
 safetensors>=0.4
 einops>=0.8
 numpy>=1.26
@@ -29,6 +31,10 @@ psutil>=5.9
 wandb>=0.16
 pyyaml>=6.0              # launch/train.sh reads datasets.yaml
 tomli>=2.0; python_version < "3.11"   # flame/config_manager.py TOML loading
+
+# --- evaluation ---
+lm_eval>=0.4.9           # eval/ruler/*: the `ruler` task group needs >=0.4.9
+matplotlib>=3.8          # optional PTL curve plot; the JSON report is written without it
 
 # --- version caveat -------------------------------------------------------
 # The original experiments did not record torchtitan / flash-linear-attention

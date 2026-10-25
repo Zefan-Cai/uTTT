@@ -3,11 +3,13 @@
 #     cp uttt_nvs/datasets.example.yaml uttt_nvs/datasets.yaml
 #
 # Fill in the paths once here and every config picks them up -- you do not need
-# to edit the 58 files under configs/. `datasets.yaml` is git-ignored.
+# to edit the files under configs/. `datasets.yaml` is git-ignored.
 #
 # Each value is a *manifest*: a text file with one camera-JSON path per line.
-# Entries may be local paths, s3:// objects or gs:// blobs, and may be mixed.
-# See uttt_nvs/data/README.md for the format and for build_manifest.py.
+# Entries may be local paths, s3:// objects or gs:// blobs, and may be mixed
+# within one manifest (each entry is opened by its own prefix; S3/GCS clients
+# are created lazily per worker). The manifest file itself may be local or
+# remote. See uttt_nvs/data/README.md for the format and for build_manifest.py.
 #
 # A config selects a block below with `training.dataset: obj` or `dl3dv`.
 

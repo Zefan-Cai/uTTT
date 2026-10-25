@@ -25,6 +25,8 @@ from torchtitan.protocols.model_converter import build_model_converters
 from torchtitan.protocols.train_spec import TrainSpec, get_train_spec, register_train_spec
 from torchtitan.tools import utils
 from torchtitan.tools.logging import init_logger, logger
+
+from flame.utils.import_utils import import_module_from_path
 from torchtitan.tools.profiling import maybe_enable_memory_snapshot, maybe_enable_profiling
 from transformers import AutoConfig, AutoModelForCausalLM, AutoTokenizer
 
@@ -156,7 +158,7 @@ def main(job_config: JobConfig):
     logger.info(f"Starting job: {job_config.job.description}")
 
     if job_config.experimental.custom_model_path:
-        utils.import_module_from_path(job_config.experimental.custom_model_path)
+        import_module_from_path(job_config.experimental.custom_model_path)
 
     # used for colorful printing
     color = utils.NoColor if job_config.metrics.disable_color_printing else utils.Color
@@ -277,6 +279,17 @@ def main(job_config: JobConfig):
 
     logger.info(f"Loading model config from {job_config.model.config}")
     model_config = AutoConfig.from_pretrained(job_config.model.config)
+    # Loss-free balancing counts routing per forward pass. The paper's protocol is
+    # one bias update per optimizer step, so with gradient accumulation the
+    # interval (and warmup) configured in optimizer steps is scaled to forwards.
+    grad_accum = int(job_config.training.gradient_accumulation_steps)
+    if grad_accum > 1 and getattr(model_config, "memory_loss_free_update_interval", None) is not None:
+        model_config.memory_loss_free_update_interval = int(model_config.memory_loss_free_update_interval) * grad_accum
+        model_config.memory_loss_free_warmup_steps = int(getattr(model_config, "memory_loss_free_warmup_steps", 0)) * grad_accum
+        logger.info(
+            f"Gradient accumulation = {grad_accum}: loss-free balancing updates every "
+            f"{model_config.memory_loss_free_update_interval} forward passes (one per optimizer step)."
+        )
     # set the model configs from training inputs:
     # 1. norm type to decide which norm layer to use
     # 2. disable fused norm if TP is enabled

@@ -18,7 +18,7 @@ python -m pip install pyyaml
 python -m tools.check_configs --check-catalog
 ```
 
-On Python 3.10, also install `tomli`. The checker validates all 124 released
+On Python 3.10, also install `tomli`. The checker validates all 143 released
 configuration files and verifies that the generated catalog is current. It
 checks source class names using Python's AST, not by importing CUDA extensions.
 It permits dataset/checkpoint placeholders: those are deployment inputs, not
@@ -82,6 +82,8 @@ python -m pip install torch==2.8.0 torchvision==0.23.0 \
 python -m pip install -r uttt_nvs/requirements.txt
 python -m pip install flash-attn --no-build-isolation
 python -m uttt_nvs.tests.smoke_configs --construct --strict
+# the three configs/scale/ files also need the VGG-19 .mat (uttt_nvs/README.md, "Larger
+# models"); until it is present they are reported as skipped assets, not failures
 ```
 
 For LLM work, install `uttt_llm/requirements.txt` instead, after PyTorch, then

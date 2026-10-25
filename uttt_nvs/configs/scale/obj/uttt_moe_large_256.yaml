@@ -1,10 +1,13 @@
 # uttt_moe_large_256_obj -- stage 1 of the progressive-resolution ladder,
 # trained from scratch.
 #
+# The paper's large uTTT-MoE (v3) run configuration, with only the dataset/API-key
+# paths rewritten and the keys this trainer does not read removed.
 # Total batch size 512; see uttt_nvs/README.md ("Larger models").
 # Training data: Objaverse (training renderings)
 # Evaluation data: Google Scanned Objects (1,019 test scenes)
 # Manifests come from uttt_nvs/datasets.yaml via `training.dataset` below.
+# The perceptual term needs the VGG-19 .mat weights (see models/perceptual_loss.py).
 
 debug: false
 exp_name: uttt_moe_large_256_obj
@@ -19,12 +22,15 @@ model:
     type: uttt_nvs.models.uttt_moe_block.MemoryModel
     params:
       attn_head_dim: 64
-      fw_head_dim: 64
+      fw_head_dim: 192
       inter_multi: 3
-      fw_inter_multi: 1
+      fw_inter_multi: 2
       v_gap: null
       use_muon: false
-      num_experts: 64
+      apply_ckpt_group: 6
+      offload_master_states: true
+      aggregate_write: true
+      num_experts: 96
       num_active_experts: 1
       sigmoid_router: false
       router_alpha: 1.0
@@ -47,6 +53,8 @@ training:
   num_threads: 1
   prefetch_factor: 2
   lpips_loss_weight: 0.0
+  perceptual_loss_weight: 0.5
+  l2_warmup_steps: 4000
   num_epochs: 100000
   max_fwdbwd_passes: 81038
   round_max_fwdbwd_passes_to_epoch: false
@@ -60,7 +68,6 @@ training:
   print_every: 20
   checkpoint_every: 500
   api_key_path: uttt_nvs/api_keys.yaml
-  wandb_project: latent-LRM
   wandb_log_every: 50
   wandb_offline: false
   dataset: obj

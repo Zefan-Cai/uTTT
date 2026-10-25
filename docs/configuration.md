@@ -1,7 +1,8 @@
 # Configuration semantics
 
 The [generated catalog](configuration-catalog.md) enumerates the complete release:
-64 NVS model/training YAMLs, 57 LLM architecture JSONs and 3 LLM job TOMLs.
+every NVS model/training YAML, LLM architecture JSON and LLM job TOML (the
+generated catalog lists the current counts).
 Configuration counts do not count trained checkpoints or successful GPU runs.
 
 ## NVS experiment families
@@ -13,9 +14,10 @@ Configuration counts do not count trained checkpoints or successful GPU runs.
 | `width/` | 16 | How do pool size and active expert count interact? |
 | `capacity/` | 8 | What changes under the released capacity variants? |
 | `schedule/` | 4 | Aggregated versus chained shared-state writes? |
-| `topology/` | 12 | One universal pool or several depth-partitioned pools? |
+| `topology/` | 20 | One universal pool or several depth-partitioned pools (MoE and dense)? |
 | `transformer/` | 2 | The non-TTT attention baseline |
-| `scale/` | 6 | Three-stage progressive-resolution training in each domain |
+| `reference/` | 4 | DeltaNet and Gated DeltaNet linear-attention references |
+| `scale/` | 3 | The paper's large (v3) uTTT-MoE: three-stage progressive-resolution training on Objaverse |
 
 `obj` means the Objaverse/GSO setup; `dl3dv` means the DL3DV setup. Do not infer
 that the two families share data, identical scale schedules or the same number

@@ -35,8 +35,9 @@ if __name__ == '__main__':
     )
     parser.add_argument(
         '--dataset_name',
-        default='sample-100BT',
-        help='The name of the dataset config, with comma separated values if provided',
+        default=None,
+        help='The name of the dataset config (HF BuilderConfig), with comma separated values if provided. '
+             'Leave unset for datasets with a single default config.',
     )
     parser.add_argument(
         '--dataset_split',

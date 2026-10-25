@@ -74,11 +74,24 @@ confuse those with the launcher's legacy node-index input.
 | LLM 124M on four workers | 4 | 4 | 2 | 32 |
 | LLM 760M published topology | 2 | 16 | 1 | 32 |
 
-Maintaining global batch does not automatically preserve a schedule: NVS's
-limit is in forward/backward passes, so changing accumulation changes the
-number of optimizer updates for the same pass count. Adjust deliberately and
+Maintaining global batch does not automatically preserve a schedule. The NVS
+budget `training.max_fwdbwd_passes` counts forward/backward passes, not
+optimizer steps: `uttt_nvs/train/checkpoint.py` computes
+`num_param_updates = ceil(num_fwdbwd_passes / gradient_accumulation_steps)`,
+so the second NVS row above (accumulation 4) performs a quarter of the
+optimizer updates of the first for the same pass count, and one epoch is
+`num_train_samples / (batch_size_per_gpu × world_size)` passes regardless of
+accumulation. To keep the published number of optimizer steps under
+accumulation `a`, multiply `max_fwdbwd_passes` by `a`. Adjust deliberately and
 report the changed recipe. Memory use also depends on context length,
 resolution, model size, active experts and activation checkpointing.
+
+The published NVS runs set `max_fwdbwd_passes: 20000` with accumulation 1 and
+the default `round_max_fwdbwd_passes_to_epoch: true`, which rounds the budget
+**up** to whole epochs (`epochs = floor(20000 / passes_per_epoch) + 1`). With
+one epoch of 6,119 passes on Objaverse and 3,341 on DL3DV the runs therefore
+stopped at 24,476 and 20,046 optimizer steps respectively, and those are the
+steps the paper's tables report.
 
 ## Exact smoke-run stopping
 
@@ -110,9 +123,8 @@ initialization; disabling evaluation does not remove that startup requirement.
    before the current step. The default is three. Future-step files are not
    removed by a run resumed at an earlier step.
 
-The retention parameter previously behaved like a step-distance threshold.
-If you explicitly used a value such as 1001, review it: it now means 1001 files,
-not roughly two checkpoint intervals. This change is listed in the changelog.
+The retention parameter counts files, not a step distance: a value such as
+1001 keeps 1001 checkpoints.
 Atomic publication prevents ordinary interrupted writes from appearing as
 complete checkpoints; filesystem/hardware durability still depends on storage.
 
@@ -124,6 +136,11 @@ The trainer selects exactly one source in this order:
 2. Explicit `--load /absolute/path/to/checkpoint.pt` or a checkpoint directory.
 3. `training.load` from the configuration.
 4. No source: initialize a fresh run.
+
+A resumed NVS run continues the interrupted epoch: the sampler rebuilds that
+epoch's permutation and skips the batches already consumed, so no sample is
+repeated or dropped. (Earlier versions, including the paper's runs, replayed
+the epoch from its first batch after every restart.)
 
 Within a directory, the newest deserializable checkpoint is used; corrupt newer
 files are reported and older files are tried. An explicit missing path, empty

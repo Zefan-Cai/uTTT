@@ -16,6 +16,7 @@ from omegaconf import ListConfig
 from .layers import Block, _init_weights
 from .ttt_minimal_v2 import parallel_ttt_config
 from .class_name import get_obj_by_name
+from .perceptual_loss import PerceptualLoss
 
 
 class LossComputer:
@@ -28,7 +29,46 @@ class LossComputer:
 
         if self.lpips_loss_weight > 0.0:
             self.lpips_loss_module = lpips.LPIPS(net="vgg").cuda().eval()
-        
+
+        # Perceptual (VGG-19) loss aligned with LaCT lvsm_ttt_simple.LossComputer:
+        # reuses the exact same PerceptualLoss module (same VGG, same
+        # preprocessing/normalization, weights loaded from the shared .mat).
+        # Lazy: instantiated only when the CONFIGURED weight > 0. Effects:
+        #   - default (weight 0.0, the running v3 config): no VGG, no forward,
+        #     no state_dict entry (LossComputer is a plain class, not an
+        #     nn.Module, so VGG never registers), and no RNG consumption.
+        #   - when instantiated, we fork the RNG so VGG's throwaway Conv2d
+        #     init (overwritten from the .mat) never perturbs the global RNG
+        #     stream, keeping model init deterministic for any config.
+        # Warmup mutates self.perceptual_loss_weight (not the backup), so
+        # instantiation keys off the immutable backup and the module is ready
+        # when warmup ends.
+        self.perceptual_loss_weight = config.training.get("perceptual_loss_weight", 0.0)
+        self.perceptual_loss_weight_backup = self.perceptual_loss_weight
+        self.perceptual_loss_module = None
+        if self.perceptual_loss_weight_backup > 0.0:
+            with torch.random.fork_rng(devices=[]):
+                self.perceptual_loss_module = PerceptualLoss()
+            self.perceptual_loss_module = self.perceptual_loss_module.cuda().eval()
+            for p in self.perceptual_loss_module.parameters():
+                p.requires_grad = False
+
+    def l2_warmup(self, set=True):
+        # Global-step-driven L2 warmup, mirroring LaCT lvsm_ttt_simple's
+        # l2_warmup. trainer.py gates it on the RESUMED global fwdbwd_pass_step
+        # (< config.training.l2_warmup_steps), so on resume at step 400 the
+        # perceptual term stays off until the absolute step 4000, not 4000
+        # more steps. During warmup: pure MSE (+ lb_loss); afterwards restore
+        # the configured lpips/perceptual weights from immutable backups.
+        # No-op when set=False and weights already equal their backups, so
+        # merely defining this method leaves a no-warmup run bitwise-identical.
+        if set:
+            self.lpips_loss_weight = 0.0
+            self.perceptual_loss_weight = 0.0
+        else:
+            self.lpips_loss_weight = self.lpips_loss_weight_backup
+            self.perceptual_loss_weight = self.perceptual_loss_weight_backup
+
     def calculate_loss(
         self,
         rendering,
@@ -58,7 +98,20 @@ class LossComputer:
         if self.lpips_loss_weight > 0.0:
             lpips_loss = self.lpips_loss_module(rendering, target, normalize=True).mean()
 
-        loss = l2_loss + self.lpips_loss_weight * lpips_loss + lb_loss
+        # Perceptual (VGG) loss, identical call to LaCT's LossComputer.
+        # Skipped entirely when the effective weight is 0 (warmup step or a
+        # weight-0 config): no VGG forward, so warmup-step memory/compute
+        # match the running v3 run exactly.
+        perceptual_loss = torch.tensor(0.0).to(l2_loss.device)
+        if self.perceptual_loss_weight > 0.0:
+            perceptual_loss = self.perceptual_loss_module(rendering, target)
+
+        loss = (
+            l2_loss
+            + self.lpips_loss_weight * lpips_loss
+            + self.perceptual_loss_weight * perceptual_loss
+            + lb_loss
+        )
 
         loss_metrics = {
             "loss": loss,
@@ -67,6 +120,7 @@ class LossComputer:
             "psnr_loc": psnr_loc,
             "psnr": psnr,
             "lpips_loss": lpips_loss,
+            "perceptual_loss": perceptual_loss,
         }
         return loss_metrics
 

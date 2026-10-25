@@ -1,14 +1,13 @@
 # uTTT — Universal Test-Time Training
 
+**[Project page](https://zefan-cai.github.io/uTTT.github.io/)** ·
+**[Paper (arXiv:2610.05484)](https://arxiv.org/abs/2610.05484)** ·
 [Documentation](docs/README.md) · [中文指南](docs/README.zh-CN.md) ·
-[Configuration catalog](docs/configuration-catalog.md) · [Changelog](CHANGELOG.md)
+[Configuration catalog](docs/configuration-catalog.md)
 
-> **Repository split:** this is the upgraded `uTTT` repository. The original
-> repository is preserved as [uTTT-DEV](https://github.com/Zefan-Cai/uTTT-DEV),
-> while this release starts with a fresh initial commit containing all code and
-> documentation, without importing the old commit history. Existing `/uTTT.git` remotes
-> now point to this release, not the development repository. See
-> [migration notes](docs/migration.md) before pushing from an older checkout.
+<p align="center">
+  <img src="docs/assets/uttt_main_figure.png" alt="Layer-private, layer-local and universal fast weights" width="92%">
+</p>
 
 Test-Time Training compresses context into fast weights, and existing designs
 make those fast weights **layer-private**: every layer owns a state no other
@@ -37,9 +36,9 @@ exactly as the experiments ran.
 ```
 uTTT/
 ├── uttt_nvs/    novel view synthesis: training + PSNR/SSIM/LPIPS evaluation
-│                64 configs — Objaverse/GSO and DL3DV, including scale ladders
+│                Objaverse/GSO and DL3DV configs, including scale ladders
 ├── uttt_llm/    language modeling at 32K: training + PTL/RULER evaluation
-│                57 configs — 124M and 760M, global batch 32
+│                124M and 760M configs, global batch 32
 ├── tools/       CPU-only config and local-manifest validation
 ├── tests/       CPU regression tests for launchers, checkpoints and data
 ├── scripts/     shared launcher validation
@@ -50,26 +49,50 @@ Coverage of the two uTTT variants:
 
 | | Novel view synthesis | Language modeling |
 |---|---|---|
-| **uTTT-Dense** | released (r1/r2/r4/r8) | not yet released |
+| **uTTT-Dense** | released (r1/r2/r4/r8) | released (124M, r1/r2/r4/r6) |
 | **uTTT-MoE** | released | released (124M, 760M) |
 
-Each domain also ships its baselines and the TTT-MoE midpoint; see the
-per-domain READMEs for the full model tables.
+Each domain also ships its baselines and the TTT-MoE midpoint: full-attention
+Transformer, Transformer-SWA, DeltaNet-SWA, Gated DeltaNet-SWA, KDA-SWA,
+Mamba-2-SWA, MoM-SWA and LaCT for language modeling; Transformer, DeltaNet and
+Gated DeltaNet for novel view synthesis. See the per-domain READMEs for the
+full model tables.
 
 ## What is not included
 
 This repository ships code and configurations. It does not ship:
 
-- **Trained checkpoints.** Every number in the paper comes from a run started
-  from scratch: 20,000 steps at a global batch of 128 for novel view synthesis,
-  10,240 (124M) and 40,960 (760M) steps at a global batch of 32 for language
-  modeling. Reproducing a row means paying that cost.
+- **Trained checkpoints.** The Objaverse novel-view checkpoints are being
+  prepared for Hugging Face (see [Checkpoints](#checkpoints)); nothing else is
+  released, and every number in the paper comes from a run started from
+  scratch. Novel view synthesis configs set
+  `max_fwdbwd_passes: 20000` at a global batch of 128, and the trainer rounds
+  that budget up to whole epochs, so the published runs stopped at 24,476
+  steps on Objaverse/GSO (one epoch = 6,119 passes) and 20,046 on DL3DV (one
+  epoch = 3,341 passes); language modeling runs 10,240 (124M) and 40,960
+  (760M) steps at a global batch of 32. Reproducing a row means paying that
+  cost.
 - **Datasets or renderings.** Each half's README names the official sources and
   the format its loader expects; nothing is redistributed here.
 - **The evaluation registry's contents.** `uttt_nvs/eval/experiments.yaml`
   describes the metric rerun in terms of your own checkpoints, manifests and
   Weights & Biases account, and its placeholders have to be filled in before it
   will run.
+- **Throughput and efficiency benchmarks.** The paper's measured-cost section
+  (training throughput, step-time breakdown, GPU-hours to a target loss,
+  kernel ablations, inference latency and peak memory) was produced with
+  benchmark scripts that are not part of this release.
+- **Mechanism experiments.** The Cut backward mode ships as a model option
+  (`memory_update_backward_mode = "cross_layer_cut"` in the LLM `uttt_moe`
+  package), but the Cut-training analysis, the write-freezing and own-write
+  knockouts, the single-route knockouts in NVS, the Jacobian read-output
+  probes and the reuse statistics are not included.
+- **The length-extrapolation study** (evaluation at 64K, 128K and 256K
+  tokens beyond the 32K training context).
+- **Large-scale NVS checkpoints.** `uttt_nvs/configs/scale/obj/*` are the
+  paper's 242M uTTT-MoE configurations (three-stage Objaverse resolution
+  ladder); the paper's runs of that ladder did not finish, no checkpoints or
+  reference numbers exist for it, and the DL3DV ladder is not released.
 
 ## Install and verify
 
@@ -83,8 +106,8 @@ bash uttt_nvs/train/launch.sh --dry-run \
     uttt_nvs/configs/ownership/obj/uttt_moe_e64a1.yaml
 ```
 
-The checker covers all 64 NVS YAMLs, 57 LLM architecture JSONs and 3 LLM job
-TOMLs. See [getting started](docs/getting-started.md) for the CPU test environment,
+The checker covers every NVS YAML, LLM architecture JSON and LLM job TOML
+under the two `configs/` trees. See [getting started](docs/getting-started.md) for the CPU test environment,
 toy-data validation and a bounded first run. Static validation is not GPU
 execution or evidence that a published result was reproduced.
 
@@ -96,6 +119,8 @@ environment: Python 3.10 · CUDA 12.8 · torch 2.8.0+cu128.
 pip install torch==2.8.0 torchvision==0.23.0 --index-url https://download.pytorch.org/whl/cu128
 pip install -r uttt_nvs/requirements.txt && pip install flash-attn --no-build-isolation
 python -m uttt_nvs.tests.smoke_configs --construct --strict
+# the three configs/scale/ files also need the VGG-19 .mat (uttt_nvs/README.md, "Larger
+# models"); until it is present they are reported as skipped assets, not failures
 
 # language modeling
 pip install torch==2.8.0 --index-url https://download.pytorch.org/whl/cu128
@@ -105,7 +130,10 @@ pip install -r uttt_llm/requirements.txt && pip install flash-attn --no-build-is
 
 The last command of each block builds every shipped model on CPU without
 touching data. It is the quickest way to catch a flash-attn wheel built against
-the wrong torch, which is the usual first failure, before spending GPU time.
+the wrong torch, which is the usual first failure. It does not exercise
+torchtitan, torchdata, `lm_eval`, `matplotlib` or W&B, so problems in the
+training or evaluation stack surface only when a launcher or evaluator starts;
+follow it with a `--dry-run` and a bounded first run.
 
 ## Your first run
 
@@ -117,7 +145,8 @@ them whenever you like: they checkpoint as they go.
 ```bash
 python -m uttt_nvs.data.make_toy_dataset --out /tmp/uttt_toy   # 16 scenes, 24 views each
 python -m tools.check_manifest /tmp/uttt_toy/manifest.txt --check-images
-# paste the two paths it prints into uttt_nvs/datasets.yaml
+# copy the template once, then paste the two paths it prints into it
+cp -n uttt_nvs/datasets.example.yaml uttt_nvs/datasets.yaml
 NPROC_PER_NODE=4 bash uttt_nvs/train/launch.sh \
     uttt_nvs/configs/ownership/obj/uttt_moe_e64a1.yaml -s exp_name first_run
 ```
@@ -132,8 +161,10 @@ be exercised before Objaverse or DL3DV are in place. Swap
 
 ```bash
 cd uttt_llm
+huggingface-cli login                   # the dataset is gated on the HF hub
 python -m flame.utils.preprocess \
     --dataset togethercomputer/Long-Data-Collections \
+    --data_dir pretrain \
     --path /path/to/arrow-shards          # any HF text dataset works for a trial
 # point uttt_llm/datasets.yaml at those shards
 NPROC_PER_NODE=8 bash launch/train.sh \
@@ -148,13 +179,20 @@ the global batch at 32; the trainer refuses to start otherwise.
 
 | | Data, training and evaluation |
 |---|---|
-| Novel view synthesis | [`uttt_nvs/README.md`](uttt_nvs/README.md) — manifests, the 64 configs, PSNR/SSIM/LPIPS with bootstrap intervals |
-| Language modeling | [`uttt_llm/README.md`](uttt_llm/README.md) — arrow shards, the 57 configs, per-token loss and RULER |
+| Novel view synthesis | [`uttt_nvs/README.md`](uttt_nvs/README.md) — manifests, the config tree, PSNR/SSIM/LPIPS with bootstrap intervals |
+| Language modeling | [`uttt_llm/README.md`](uttt_llm/README.md) — arrow shards, the config tree, per-token loss and RULER |
+
+## Checkpoints
+
+The Objaverse/GSO novel-view checkpoints behind the paper's tables will be
+published on Hugging Face in the layout the evaluation registry expects
+(`object/<model>/checkpoint.pt`); this README will link them when they are up.
+DL3DV and language-modeling checkpoints are not released.
 
 ## Project page
 
-[`docs/index.html`](docs/index.html) — open locally, or serve with GitHub
-Pages.
+[zefan-cai.github.io/uTTT.github.io](https://zefan-cai.github.io/uTTT.github.io/)
+hosts the overview, result figures and the novel-view demo renderings.
 
 ## Acknowledgements
 
@@ -167,6 +205,22 @@ This code builds on [LaCT](https://tianyuanzhang.com/projects/ttt-done-right/),
 [flash-linear-attention](https://github.com/fla-org/flash-linear-attention)
 from fla-org, and [torchtitan](https://github.com/pytorch/torchtitan).
 
+## Citation
+
+Paper: [arXiv:2610.05484](https://arxiv.org/abs/2610.05484).
+
+```bibtex
+@article{cai2026universal,
+  title   = {Universal Test-Time Training},
+  author  = {Cai, Zefan and Hu, Qinzhe and Ma, Ziqiao and Tan, Hao and Hu, Junjie},
+  journal = {arXiv preprint arXiv:2610.05484},
+  year    = {2026}
+}
+```
+
 ## License
 
-MIT. See [LICENSE](LICENSE).
+MIT. See [LICENSE](LICENSE). Vendored and derived third-party code (LaCT,
+flame, flash-linear-attention, torchtitan, Mamba-2 kernels, TransformerEngine
+permutation kernels) keeps its own license; see
+[THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).

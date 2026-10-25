@@ -3,8 +3,7 @@
 This repository contains research implementations and reproducibility tooling.
 Prefer focused changes that preserve the experimental interpretation of the
 released configurations. See the [architecture guide](docs/architecture.md)
-and [repository split](docs/migration.md) before renaming models or changing
-remotes.
+before renaming models.
 
 ## Before editing
 
@@ -53,7 +52,7 @@ the [testing guide](docs/testing.md).
 - Describe the bug/feature and affected configs/packages.
 - Include the minimal reproducer, validation commands and results.
 - Explain checkpoint/config compatibility and any intentional behavior change.
-- Update the relevant guide and changelog for user-visible changes.
+- Update the relevant guide for user-visible changes.
 - Do not commit datasets, checkpoints, `.env`, API keys, private path registries
   or generated training outputs.
 - Keep benchmark settings, evaluation coverage and seeds comparable across

@@ -7,7 +7,7 @@
 | Static configuration | `python -m tools.check_configs --check-catalog` | Released config structure and selected cross-field invariants | Model imports, data access or CUDA correctness |
 | CPU regression | `python -m pytest -q` | Checkpoint/data/launcher/tool behavior | Full model execution or training quality |
 | Syntax | `python -m compileall -q tools tests uttt_nvs uttt_llm` | Python source parses | Imports or runtime correctness |
-| Construction | Domain `smoke_configs --construct` | Real classes import and initialize | Fused forward/backward correctness |
+| Construction | Domain `smoke_configs --construct` | Real classes import and initialize; flash-attn ABI matches torch | Fused forward/backward correctness; the training/evaluation stack (torchtitan, torchdata, `lm_eval`, `matplotlib`, W&B) is not imported |
 | GPU kernel | Explicit CUDA kernel tests | Covered primitive cases on the tested stack | All shapes, all hardware or end-to-end quality |
 | Bounded training | Several real forward/backward/optimizer steps | End-to-end viability for that recipe | Convergence or published performance |
 | Resume | Stop and continue a completed checkpoint | Restore behavior for that model/topology | Bitwise equivalence under all distributed settings |
@@ -52,6 +52,8 @@ In the full NVS environment:
 
 ```bash
 python -m uttt_nvs.tests.smoke_configs --construct --strict
+# the three configs/scale/ files also need the VGG-19 .mat (uttt_nvs/README.md, "Larger
+# models"); until it is present they are reported as skipped assets, not failures
 python -m pytest uttt_nvs/tests/test_triton_permute.py -q
 ```
 
@@ -66,9 +68,17 @@ In the full LLM environment:
 (cd uttt_llm && python -m tests.smoke_configs --construct)
 ```
 
-Do not use `--stub-flash-attn` for claimed CUDA validation. That option replaces
-the attention implementation for diagnosis and cannot establish fidelity of
-the original kernels.
+Without a GPU, `--stub-flash-attn` lets the same script resolve every model
+type and construct the configs on CPU (the LLM packages import flash-attn at
+module scope). Do not use it for claimed CUDA validation: it replaces the
+attention implementation for diagnosis and cannot establish fidelity of the
+original kernels.
+
+Neither the root `tests/` suite nor the two `smoke_configs` scripts import
+torchtitan, torchdata, `lm_eval` or `matplotlib`, so a passing run does not
+show that the training launcher or the PTL / RULER evaluators will start. The
+first real check of those is a short `--dry-run` followed by a bounded
+training or evaluation run.
 
 ## Continuous integration
 

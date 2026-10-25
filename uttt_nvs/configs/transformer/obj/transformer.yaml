@@ -82,4 +82,3 @@ training:
 # inference
 # Evaluation data: Google Scanned Objects (1,019 test scenes).
 # eval_dataset_path: "PATH/TO/gso_test_manifest.txt"
-setup_config_path: "setup_flash.yaml"

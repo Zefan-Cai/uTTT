@@ -22,9 +22,10 @@ numpy>=1.26
 rich>=13.0
 packaging>=23.0            # models/kernels/triton_permute.py, version gate
 transformers>=4.40         # train/optimizer.py, learning-rate schedules
-lpips>=0.1.4               # models/lvsm*.py, perceptual loss term
+lpips>=0.1.4               # models/lvsm*.py, LPIPS term (weight 0 in every released config)
+scipy>=1.11                # models/perceptual_loss.py, loads the VGG-19 .mat weights (scale configs)
 matplotlib>=3.8            # models/debug_utils.py, activation plots
-pytest>=8.0                # imported at module scope by models/kernels/triton_permute.py
+pytest>=8.0                # tests/test_triton_permute.py (CUDA kernel test); not imported by the models
 
 # --- data pipeline ---
 pillow>=10.0

@@ -38,5 +38,9 @@ the total count does.
 ## Choosing a GPU count
 
 Pick a count that divides the total batch evenly at a per-GPU batch your cards
-can hold. The published 4 x 32 needs about 2 GB per GPU at 256 x 256; the larger
-`configs/scale/` models need considerably more.
+can hold. The published 4 x 32 at 256 x 256 (8 layers, 12 views, 64 experts,
+no activation checkpointing) peaks at about 30 GiB per GPU with the
+aggregated write schedule and about 41 GiB with the chained schedule on an
+H100 80GB, as measured in the paper's write-schedule cost table; plan for
+40 GB-class cards or more, and halve the per-GPU batch on smaller ones. The
+larger `configs/scale/` models need considerably more.

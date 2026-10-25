@@ -13,7 +13,10 @@ from typing import Any, Iterable, Mapping
 import yaml
 
 
-REPO_ROOT = Path(__file__).resolve().parents[1]
+# uttt_nvs/eval/common.py -> uttt_nvs/eval -> uttt_nvs -> repository root.
+REPO_ROOT = Path(__file__).resolve().parents[2]
+EVAL_DIR = Path(__file__).resolve().parent
+DEFAULT_REGISTRY = EVAL_DIR / "experiments.yaml"
 MODEL_BATCH_KEYS = ("fxfycxcy", "c2w", "image", "index")
 NATURAL_OUTPUT_IDENTITY_ASSET_KEYS = (
     "registry_sha256",
@@ -260,7 +263,7 @@ def sha256_file(path: Path, chunk_size: int = 8 * 1024 * 1024) -> str:
 def evaluation_code_sha256() -> str:
     """Hash the evaluator implementation, including uncommitted source edits."""
 
-    paths = sorted((REPO_ROOT / "eval").glob("*.py"))
+    paths = sorted(EVAL_DIR.glob("*.py"))
     _launcher = REPO_ROOT / "scripts" / "launch_nvs_eval.py"
     if _launcher.exists():
         paths.append(_launcher)

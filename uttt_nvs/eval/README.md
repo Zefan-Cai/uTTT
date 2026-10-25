@@ -1,9 +1,25 @@
 # NVS full-test evaluation inventory
 
-`experiments.yaml` is the source of truth for the metric rerun. It pairs the
-17 paper configurations with both test domains, for 34 evaluation runs in
-total. All selected configurations have `v_gap: null`; the `p2` and `p4`
-pool-topology ablations are intentionally excluded.
+`experiments.yaml` is the source of truth for the metric rerun. Its first 34
+entries pair the 17 configurations of the paper's metric rerun with both test
+domains; 22 further entries cover the remaining rows of
+the paper's full tables. All configurations have `v_gap: null`.
+
+## What the registry covers, and what it does not
+
+The paper's full tables (`tab:nvs-gso-full`, `tab:nvs-dl3dv-full`) report
+28 rows per dataset. The registry now lists every one of them except the
+Transformer rows, which live in the separate `experiments_transformer.yaml`
+(two entries):
+
+- the metric rerun's 17 configurations per dataset (ownership, capacity,
+  width and dense ladders), whose checkpoints were the curated paper set;
+- the depth-partitioned runs `uTTT-MoE-e{32,16}-p2`, `uTTT-MoE-e{16,8}-p4`
+  and `uTTT-Dense-w{4,2,1}-p{2,4}`, the chained-write schedule and the DeltaNet /
+  Gated DeltaNet references. These 22 entries follow the same layout, but no
+  checkpoint inventory backs them: train the configuration, place the
+  checkpoint under `checkpoint_root` at the path the entry names (or edit the
+  path), then run the entry like any other.
 
 ## Fixed protocol
 
@@ -16,7 +32,8 @@ pool-topology ablations are intentionally excluded.
 - DL3DV has 140 scenes and must yield 3,220 raw metric rows per model.
 - Upload runs to your W&B entity/project (see `experiments.yaml`).
 - Resolve `config` relative to the repository root and `checkpoint` relative
-  to `/PATH/TO/MANIFESTS`.
+  to `defaults.checkpoint_root` in the registry (`/PATH/TO/CHECKPOINTS` in the
+  shipped file).
 
 The checkpoint filenames encode the actual saved steps: Object/GSO uses step
 24,476 and DL3DV uses step 20,046. These are deliberately recorded instead of
@@ -32,8 +49,8 @@ Choose two local data roots on the evaluation node, for example:
 The existing source manifests may contain S3 paths. Before evaluation, convert
 them into the two local manifests named in `experiments.yaml`:
 
-- `/PATH/TO/MANIFESTS/gso_test_local.txt`
-- `/PATH/TO/MANIFESTS/dl3dv_benchmark_local.txt`
+- `/PATH/TO/MANIFESTS/gso_v0.1_instant3d_test_localssd.txt`
+- `/PATH/TO/MANIFESTS/dl3dv10k_benchmark_local.txt`
 
 Then generate and freeze each dataset's `view_manifest`. A run must fail
 preflight if either its local manifest, its frozen view manifest, or any
@@ -51,8 +68,11 @@ from the `config` field.
 The two DL3DV TTT-MoE rows record `checkpoint_impl: ttt_moe_alt`: those
 curated checkpoints were saved by an alternate implementation of the same
 architecture, so a state dict trained with the standard implementation is not
-interchangeable with them. W&B and paper-facing output use `TTT-MoE-e4a1` and
-`TTT-MoE-e8a1` regardless.
+interchangeable with them. The alternate implementation is mathematically the
+same model as `uttt_moe_block.py` with `pool_mode: per_block` and differs only
+in parameter layout, so re-training the released
+`configs/ownership/dl3dv/ttt_moe_e{4,8}a1.yaml` reproduces the row. W&B and
+paper-facing output use `TTT-MoE-e4a1` and `TTT-MoE-e8a1` regardless.
 
 ## Configuration count
 
@@ -77,26 +97,26 @@ python -m uttt_nvs.eval.build_local_dataset_manifest \
   --source-manifest /path/to/gso_test_manifest.txt \
   --source-prefix s3://YOUR_BUCKET/gso_renderings/ \
   --local-root /path/to/gso_renderings \
-  --output /PATH/TO/MANIFESTS/gso_test_local.txt
+  --output /PATH/TO/MANIFESTS/gso_v0.1_instant3d_test_localssd.txt
 
 python -m uttt_nvs.eval.build_local_dataset_manifest \
   --source-manifest /path/to/dl3dv_benchmark_manifest.txt \
   --source-prefix s3://YOUR_BUCKET/dl3dv_benchmark/ \
   --local-root /path/to/dl3dv_benchmark \
-  --output /PATH/TO/MANIFESTS/dl3dv_benchmark_local.txt
+  --output /PATH/TO/MANIFESTS/dl3dv10k_benchmark_local.txt
 ```
 
 Freeze the exact `random.sample` order used by the existing dataset protocol:
 
 ```bash
 python -m uttt_nvs.eval.build_view_manifest \
-  --dataset-manifest /PATH/TO/MANIFESTS/gso_test_local.txt \
+  --dataset-manifest /PATH/TO/MANIFESTS/gso_v0.1_instant3d_test_localssd.txt \
   --dataset gso \
   --seed 9595 \
   --output /PATH/TO/MANIFESTS/gso_views_seed9595_v24.json
 
 python -m uttt_nvs.eval.build_view_manifest \
-  --dataset-manifest /PATH/TO/MANIFESTS/dl3dv_benchmark_local.txt \
+  --dataset-manifest /PATH/TO/MANIFESTS/dl3dv10k_benchmark_local.txt \
   --dataset dl3dv \
   --seed 9595 \
   --output /PATH/TO/MANIFESTS/dl3dv_views_seed9595_v24.json
@@ -126,8 +146,9 @@ python -m uttt_nvs.eval.evaluate \
   --wandb-mode disabled
 ```
 
-Run the full 34-experiment matrix by iterating over the registry; the batch
-launcher used for the paper is not part of this repository.
+Run the whole matrix by iterating over the registry (and
+`experiments_transformer.yaml` for the Transformer rows); the batch launcher
+used for the paper is not part of this repository.
 
 ```bash
 python - <<'EOF'
@@ -139,9 +160,9 @@ for exp in yaml.safe_load(open(reg))["experiments"]:
 EOF
 ```
 
-The launcher provisions and validates the LPIPS-VGG weights once on CPU before
-starting concurrent GPU workers. It skips runs with `completion.json` by
-default; use `--overwrite` for an intentional rerun. A failed run without a
+`evaluate.py` builds its LPIPS-VGG metric on the evaluation device (the `lpips`
+package downloads the weights on first use). It skips runs with `completion.json`
+by default; use `--overwrite` for an intentional rerun. A failed run without a
 completion marker is recomputed safely on the next launch.
 
 Each completed run writes:
@@ -164,8 +185,10 @@ python -m uttt_nvs.eval.aggregate
 ## Render comparisons
 
 The paper-facing rendering script uses TTT-Dense, TTT-MoE-e8a1, and
-uTTT-MoE-e64a1 on the same frozen scenes and views. DL3DV automatically uses
-the registered MHA-MoE checkpoint/config for its TTT-MoE column.
+uTTT-MoE-e64a1 on the same frozen scenes and views. It reads each column's
+checkpoint and config from the registry entry of the chosen dataset; there is
+no implementation switching inside the script, so the DL3DV TTT-MoE column
+uses whatever `config:`/`checkpoint:` pair its registry entry names.
 
 ```bash
 python -m uttt_nvs.eval.render_comparison \

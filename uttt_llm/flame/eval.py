@@ -26,6 +26,8 @@ from torchtitan.protocols.model_converter import build_model_converters
 from torchtitan.protocols.train_spec import TrainSpec, get_train_spec, register_train_spec
 from torchtitan.tools import utils
 from torchtitan.tools.logging import init_logger, logger
+
+from flame.utils.import_utils import import_module_from_path
 from torchtitan.tools.profiling import maybe_enable_memory_snapshot, maybe_enable_profiling
 from transformers import AutoConfig, AutoModelForCausalLM, AutoTokenizer
 
@@ -74,7 +76,7 @@ def main(job_config: JobConfig):
     logger.info(f"Starting job: {job_config.job.description}")
 
     if job_config.experimental.custom_model_path:
-        utils.import_module_from_path(job_config.experimental.custom_model_path)
+        import_module_from_path(job_config.experimental.custom_model_path)
 
     # used for colorful printing
     color = utils.NoColor if job_config.metrics.disable_color_printing else utils.Color

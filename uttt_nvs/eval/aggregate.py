@@ -7,11 +7,10 @@ import argparse
 import json
 from pathlib import Path
 
-from uttt_nvs.eval.common import REPO_ROOT, load_registry
+from uttt_nvs.eval.common import DEFAULT_REGISTRY, load_registry
 from uttt_nvs.eval.statistics import RAW_FIELDS
 
 
-DEFAULT_REGISTRY = REPO_ROOT / "eval" / "experiments.yaml"
 
 
 def parse_args() -> argparse.Namespace:

@@ -37,6 +37,8 @@ from torchtitan.protocols.model_converter import build_model_converters
 from torchtitan.protocols.train_spec import TrainSpec, get_train_spec, register_train_spec
 from torchtitan.tools import utils
 from torchtitan.tools.logging import init_logger, logger
+
+from flame.utils.import_utils import import_module_from_path
 from torchtitan.tools.profiling import maybe_enable_memory_snapshot, maybe_enable_profiling
 import flame.custom_models as custom_models
 import torch.distributed as dist
@@ -202,7 +204,7 @@ def main(job_config: JobConfig):
     logger.info(f"Starting job: {job_config.job.description}")
 
     if job_config.experimental.custom_model_path:
-        utils.import_module_from_path(job_config.experimental.custom_model_path)
+        import_module_from_path(job_config.experimental.custom_model_path)
 
     # used for colorful printing
     color = utils.NoColor if job_config.metrics.disable_color_printing else utils.Color
@@ -854,10 +856,14 @@ def main(job_config: JobConfig):
 
     if torch.distributed.get_rank() == 0:
         loss_at_per_token_tracker.save_to_json(report_save_path)
-        plot_save_path = os.path.join(job_config.job.dump_folder, f"{save_prefix}_loss_at_per_token_position.png")
-        loss_at_per_token_tracker.plot_curve(save_path=plot_save_path)
         print(f"Saved loss at per token to {report_save_path}")
-        print(f"Saved loss at per token plot to {plot_save_path}")
+        plot_save_path = os.path.join(job_config.job.dump_folder, f"{save_prefix}_loss_at_per_token_position.png")
+        try:
+            loss_at_per_token_tracker.plot_curve(save_path=plot_save_path)
+        except ImportError as exc:  # matplotlib is optional; the JSON above is the deliverable
+            print(f"Skipping loss-at-position plot ({exc}); install matplotlib to render it.")
+        else:
+            print(f"Saved loss at per token plot to {plot_save_path}")
         num_of_tokens_tracked = loss_at_per_token_tracker.num_of_tokens_tracked()
         print(f"Number of tokens tracked: {num_of_tokens_tracked / 1e6}M")
         # Load the saved plot image and log it to wandb

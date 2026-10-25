@@ -1347,6 +1347,188 @@ def _init_global_v4_5_weights(
     )
 
 
+class _CrossLayerCutStateAlias(torch.autograd.Function):
+    """Per-reader aliases of the precomputed ``cat([w0, w2], dim=2)`` read operand.
+
+    Backward mode ``cross_layer_cut`` keeps one backward stream of the bank per reader layer.
+    All streams hold equal values, so the operand is built once (from stream 0) and returned
+    as ``num_streams`` aliases; in backward, the gradient of alias ``l`` goes to stream ``l``'s
+    ``(w0, w2)`` only. Inputs: ``num_streams`` x ``(w0, w2)``.
+    """
+
+    @staticmethod
+    def forward(ctx, num_streams, *w0_w2):
+        w0, w2 = w0_w2[0], w0_w2[1]
+        ctx.split_sizes = (w0.shape[2], w2.shape[2])
+        with torch.no_grad():
+            joined = torch.cat([w0, w2], dim=2).contiguous()
+        return tuple(joined.view_as(joined) for _ in range(num_streams))
+
+    @staticmethod
+    @torch.autograd.function.once_differentiable
+    def backward(ctx, *grad_outputs):
+        grads = []
+        for grad in grad_outputs:
+            if grad is None:
+                grads.extend((None, None))
+            else:
+                grads.extend(torch.split(grad, ctx.split_sizes, dim=2))
+        return (None, *grads)
+
+
+class CrossLayerCutAggregateUpdate(torch.autograd.Function):
+    """Aggregate bank update of global-v4.5 with the cross-layer backward routes cut.
+
+    Forward: exactly the aggregate update of backward mode ``full``: ``A = 0 + G_0 + ... +
+    G_{L-1}`` (same summation order), ``m = mean_r m_r`` (``pool_mean``), then one
+    ``memory.apply_update`` (momentum, Muon/Newton-Schulz, renorm). The result is returned
+    ``L`` times as aliases, one per backward stream (reader layer).
+
+    Backward: stream ``l``'s output depends on stream ``l``'s previous master weights and
+    momentum, on ``A`` and on ``m``; the vector-Jacobian product of the update is evaluated for
+    every stream (batched ``vjp_group`` streams at a time by repeating the evaluation point
+    along the batch dimension), and ``dA`` of stream ``l`` is routed to writer ``l``'s raw
+    gradient ``G_l`` only, ``dm / L`` to ``m_l`` only. ``G_r`` and ``m_r`` of ``r != l``
+    therefore enter stream ``l`` as constants.
+
+    Flat inputs: ``L`` streams x (master w0, w1, w2, momentum w0, w1, w2), then ``L`` writers x
+    (G w0, w1, w2), then ``L`` momentum coefficients. Outputs: ``L`` streams x (fast w0, w1,
+    w2, master w0, w1, w2, momentum w0, w1, w2). ``memory.apply_update`` reads no parameter.
+    The backward recomputation runs under the forward's autocast state (as checkpoint does).
+    """
+
+    @staticmethod
+    @torch.amp.custom_fwd(device_type="cuda")
+    def forward(ctx, memory, lr_scale, num_streams, vjp_group, *flat):
+        num_layers = num_streams
+        masterw = [tuple(flat[6 * idx : 6 * idx + 3]) for idx in range(num_streams)]
+        momentum_buf = [tuple(flat[6 * idx + 3 : 6 * idx + 6]) for idx in range(num_streams)]
+        offset = 6 * num_streams
+        raw_grads = [tuple(flat[offset + 3 * idx : offset + 3 * idx + 3]) for idx in range(num_layers)]
+        offset += 3 * num_layers
+        m_coeffs = list(flat[offset : offset + num_layers])
+        with torch.no_grad():
+            agg_grads = [torch.zeros_like(weight) for weight in masterw[0]]
+            for layer_grads in raw_grads:
+                for grad_idx, grad in enumerate(layer_grads):
+                    agg_grads[grad_idx] = agg_grads[grad_idx] + grad
+            pool_m_coeff = torch.stack(m_coeffs, dim=0).mean(dim=0)
+        # Grad mode on, on detached leaves, as in full's checkpointed forward: the compiled
+        # helpers inside apply_update (Newton-Schulz under torch.compile) build a different graph
+        # under no_grad and round differently in bf16, which would break forward identity.
+        with torch.enable_grad():
+
+            def _leaves(tensors):
+                return tuple(tensor.detach().requires_grad_(True) for tensor in tensors)
+
+            # _apply_moe_update_dense unpacks but never reads its ``fastw`` argument.
+            new_fastw, new_masterw, new_momentum_buf = memory.apply_update(
+                _leaves(agg_grads),
+                _leaves(masterw[0]),
+                _leaves(masterw[0]),
+                momentum_buf=_leaves(momentum_buf[0]),
+                m_coeff=pool_m_coeff.detach().requires_grad_(True),
+                lr_scale=lr_scale,
+            )
+        new_fastw = tuple(weight.detach() for weight in new_fastw)
+        new_masterw = tuple(weight.detach() for weight in new_masterw)
+        if new_momentum_buf is not None:
+            new_momentum_buf = tuple(weight.detach() for weight in new_momentum_buf)
+        if new_momentum_buf is None:
+            raise RuntimeError("cross_layer_cut requires the momentum update (pool_mean).")
+        ctx.memory = memory
+        ctx.lr_scale = lr_scale
+        ctx.num_streams = num_streams
+        ctx.vjp_group = max(1, int(vjp_group))
+        ctx.grad_dtypes = [tuple(grad.dtype for grad in layer_grads) for layer_grads in raw_grads]
+        ctx.m_dtypes = [m_coeff.dtype for m_coeff in m_coeffs]
+        ctx.save_for_backward(*agg_grads, *masterw[0], *momentum_buf[0], pool_m_coeff)
+        outputs = []
+        for _ in range(num_streams):
+            outputs.extend(weight.view_as(weight) for weight in (*new_fastw, *new_masterw, *new_momentum_buf))
+        return tuple(outputs)
+
+    @staticmethod
+    @torch.amp.custom_bwd(device_type="cuda")
+    @torch.autograd.function.once_differentiable
+    def backward(ctx, *grad_outputs):
+        num_streams = ctx.num_streams
+        memory = ctx.memory
+        saved = ctx.saved_tensors
+        agg_grads, masterw, momentum_buf, pool_m_coeff = saved[0:3], saved[3:6], saved[6:9], saved[9]
+        batch_size = agg_grads[0].shape[0]
+        grad_masterw = [(None, None, None)] * num_streams
+        grad_momentum = [(None, None, None)] * num_streams
+        grad_raw = [(None, None, None)] * num_streams
+        grad_m = [None] * num_streams
+        for start in range(0, num_streams, ctx.vjp_group):
+            streams = [
+                idx
+                for idx in range(start, min(num_streams, start + ctx.vjp_group))
+                if any(grad_outputs[9 * idx + j] is not None for j in range(9))
+            ]
+            if not streams:
+                continue
+            count = len(streams)
+
+            def _repeat(tensor):
+                return tensor.detach().repeat(count, *([1] * (tensor.dim() - 1))).requires_grad_(True)
+
+            with torch.enable_grad():
+                agg_rep = [_repeat(tensor) for tensor in agg_grads]
+                master_rep = [_repeat(tensor) for tensor in masterw]
+                momentum_rep = [_repeat(tensor) for tensor in momentum_buf]
+                m_rep = _repeat(pool_m_coeff)
+                new_fastw, new_masterw, new_momentum_buf = memory.apply_update(
+                    tuple(agg_rep),
+                    tuple(master_rep),
+                    tuple(master_rep),
+                    momentum_buf=tuple(momentum_rep),
+                    m_coeff=m_rep,
+                    lr_scale=ctx.lr_scale,
+                )
+                outputs = (*new_fastw, *new_masterw, *new_momentum_buf)
+                cotangents = []
+                for out_idx, output in enumerate(outputs):
+                    parts = []
+                    for idx in streams:
+                        grad = grad_outputs[9 * idx + out_idx]
+                        parts.append(
+                            torch.zeros_like(output[:batch_size]) if grad is None else grad.to(output.dtype),
+                        )
+                    cotangents.append(torch.cat(parts, dim=0))
+                grads = torch.autograd.grad(
+                    outputs,
+                    (*agg_rep, *master_rep, *momentum_rep, m_rep),
+                    cotangents,
+                    allow_unused=True,
+                )
+            for pos, idx in enumerate(streams):
+                rows = slice(pos * batch_size, (pos + 1) * batch_size)
+
+                def _take(grad, dtype=None):
+                    if grad is None:
+                        return None
+                    grad = grad[rows]
+                    return grad if dtype is None else grad.to(dtype)
+
+                grad_raw[idx] = tuple(
+                    _take(grad, dtype) for grad, dtype in zip(grads[0:3], ctx.grad_dtypes[idx])
+                )
+                grad_masterw[idx] = tuple(_take(grad) for grad in grads[3:6])
+                grad_momentum[idx] = tuple(_take(grad) for grad in grads[6:9])
+                grad_m_idx = _take(grads[9])
+                grad_m[idx] = None if grad_m_idx is None else (grad_m_idx / num_streams).to(ctx.m_dtypes[idx])
+        flat_grads = []
+        for idx in range(num_streams):
+            flat_grads.extend(grad_masterw[idx])
+            flat_grads.extend(grad_momentum[idx])
+        for idx in range(num_streams):
+            flat_grads.extend(grad_raw[idx])
+        flat_grads.extend(grad_m)
+        return (None, None, None, None, *flat_grads)
+
+
 class RecurrentLactRefMoeGlobalV45Model(base.RecurrentLactRefModel):
     config_class = RecurrentLactRefMoeGlobalV45Config
     _no_split_modules = ["RecurrentLactRefMoeGlobalV45Block"]
@@ -1380,6 +1562,25 @@ class RecurrentLactRefMoeGlobalV45Model(base.RecurrentLactRefModel):
         self.memory_update_aggregate_write = config.memory_update_aggregate_write
         self.memory_aggregate_momentum_mode = config.memory_aggregate_momentum_mode
         self.memory_aggregate_lr_scale = config.memory_aggregate_lr_scale
+        self.memory_cross_layer_cut_vjp_group = getattr(config, "memory_cross_layer_cut_vjp_group", 1)
+        write_layers = getattr(config, "memory_write_layers", "all")
+        if write_layers == "all":
+            self._memory_writer_layers = tuple(range(config.num_hidden_layers))
+        elif write_layers == "last":
+            self._memory_writer_layers = (config.num_hidden_layers - 1,)
+        else:
+            self._memory_writer_layers = tuple(sorted(int(i) for i in write_layers))
+        self._memory_writer_set = frozenset(self._memory_writer_layers)
+        if len(self._memory_writer_layers) != config.num_hidden_layers:
+            if not self.memory_update_aggregate_write:
+                raise ValueError("memory_write_layers other than 'all' requires memory_update_aggregate_write=True.")
+            if self.memory_update_backward_mode == "cross_layer_cut":
+                raise ValueError("memory_write_layers other than 'all' is not supported with cross_layer_cut.")
+            print(
+                f"[global-v4.5] memory_write_layers={write_layers!r}: layers {list(self._memory_writer_layers)} "
+                f"of {config.num_hidden_layers} write the shared bank; every layer reads it.",
+                flush=True,
+            )
         self.w0_w2_low_rank = config.w0_w2_low_rank
         self.fw_init_gain = config.fw_init_gain
         self.pool_head_dim = first_memory.head_dim
@@ -1471,7 +1672,9 @@ class RecurrentLactRefMoeGlobalV45Model(base.RecurrentLactRefModel):
                 return
             effective_step = steps - self.memory_loss_free_warmup_steps
             if effective_step % self.memory_loss_free_update_interval != 0:
-                counts.zero_()
+                # Keep accumulating: one bias update per `update_interval` forwards
+                # (the trainer sets it to the gradient-accumulation factor, so the
+                # update sees the whole optimizer-step batch, as in the paper).
                 return
 
             bias = self.memory_loss_free_bias
@@ -1503,7 +1706,9 @@ class RecurrentLactRefMoeGlobalV45Model(base.RecurrentLactRefModel):
                 dtype=self.memory_loss_free_pending_counts.dtype,
             )
             self._sync_loss_free_counts(counts)
-            self.memory_loss_free_pending_counts.copy_(counts)
+            # Accumulate rather than overwrite: with update_interval == 1 the buffer
+            # was zeroed by the preceding update, so this equals the old copy_.
+            self.memory_loss_free_pending_counts.add_(counts)
             self.memory_loss_free_steps.add_(1)
 
     def _init_pool_parameters(self):
@@ -2219,7 +2424,12 @@ class RecurrentLactRefMoeGlobalV45Model(base.RecurrentLactRefModel):
             update_freqs = []
             precomputed_w0_w2 = self._precompute_w0_w2(inner_fastw)
 
+            writer_set = self._memory_writer_set
             for inner_layer_idx, inner_layer in enumerate(self.layers):
+                if inner_layer_idx not in writer_set:
+                    update_probs.append(None)
+                    update_freqs.append(None)
+                    continue
                 raw_grads, m_coeff, update_lb_info = inner_layer.compute_raw_grad_only(
                     inner_pre_updates[inner_layer_idx],
                     inner_fastw,
@@ -2238,6 +2448,11 @@ class RecurrentLactRefMoeGlobalV45Model(base.RecurrentLactRefModel):
                 probs, freqs = update_lb_info
                 update_probs.append(probs.float())
                 update_freqs.append(freqs.float())
+            # non-writers add nothing to the update-side balancing counts
+            ref_probs = next(p for p in update_probs if p is not None)
+            ref_freqs = next(f for f in update_freqs if f is not None)
+            update_probs = [torch.zeros_like(ref_probs) if p is None else p for p in update_probs]
+            update_freqs = [torch.zeros_like(ref_freqs) if f is None else f for f in update_freqs]
 
             if self.memory_aggregate_momentum_mode == "none":
                 pool_m_coeff = None
@@ -2306,6 +2521,8 @@ class RecurrentLactRefMoeGlobalV45Model(base.RecurrentLactRefModel):
         update_freqs = outputs[output_idx + 1]
 
         for layer_idx in range(num_layers):
+            if layer_idx not in self._memory_writer_set:
+                continue
             self._accumulate_lb_info(
                 update_accum_probs,
                 update_accum_freqs,
@@ -2327,6 +2544,284 @@ class RecurrentLactRefMoeGlobalV45Model(base.RecurrentLactRefModel):
             )
 
         return new_fastw, new_masterw, new_momentum_buf
+
+    def _cross_layer_cut_active(self) -> bool:
+        """Backward mode ``cross_layer_cut`` acts on the training forward with grad only; the
+        forward values are those of ``full``, so eval, generation and no-grad forwards run the
+        unchanged ``full`` path."""
+        return (
+            self.memory_update_backward_mode == "cross_layer_cut"
+            and self.training
+            and torch.is_grad_enabled()
+        )
+
+    @staticmethod
+    def _cross_layer_cut_precompute_w0_w2(stream_fastws):
+        """``_precompute_w0_w2`` per backward stream, built once and aliased per stream."""
+        if not _PRECOMPUTE_W0_W2:
+            return [None] * len(stream_fastws)
+        flat = []
+        for fastw in stream_fastws:
+            flat.extend((fastw[0], fastw[2]))
+        return list(_CrossLayerCutStateAlias.apply(len(stream_fastws), *flat))
+
+    def _update_global_memory_pool_for_chunk_cross_layer_cut(
+        self,
+        caches: list[dict[str, Any]],
+        chunk_start: int,
+        seq_len: int,
+        streams: list[tuple[Tuple[torch.Tensor, ...], Tuple[torch.Tensor, ...], Tuple[torch.Tensor, ...]]],
+        update_accum_probs: torch.Tensor,
+        update_accum_freqs: torch.Tensor,
+        update_route_stats: dict[str, torch.Tensor] | None,
+    ):
+        """Aggregate write of backward mode ``cross_layer_cut``.
+
+        Same forward values as ``_update_global_memory_pool_for_chunk_aggregate_inner``: every
+        writer's raw gradient is computed inside one checkpoint (each writer at its own
+        stream's state, which equals the shared state), then the update is applied once by
+        ``CrossLayerCutAggregateUpdate``, which returns one aliased copy per stream.
+        """
+        is_last_chunk = chunk_start + self.chunk_size >= seq_len
+        if not self.use_memory_block or is_last_chunk:
+            return streams
+
+        num_layers = len(self.layers)
+        pre_updates = []
+        ki_values = []
+        vi_values = []
+        for layer_idx, layer in enumerate(self.layers):
+            pre_update, ki, vi = self._compose_memory_update_inputs(layer, layer_idx, caches)
+            pre_updates.append(pre_update)
+            ki_values.append(ki)
+            vi_values.append(vi)
+
+        def _writers_inner(*args):
+            inner_pre_updates = args[0:num_layers]
+            inner_ki_values = args[num_layers : 2 * num_layers]
+            inner_vi_values = args[2 * num_layers : 3 * num_layers]
+            arg_idx = 3 * num_layers
+            inner_fastws = []
+            inner_masterws = []
+            for _ in range(num_layers):
+                inner_fastws.append(tuple(args[arg_idx : arg_idx + 3]))
+                inner_masterws.append(tuple(args[arg_idx + 3 : arg_idx + 6]))
+                arg_idx += 6
+            precomputed = self._cross_layer_cut_precompute_w0_w2(inner_fastws)
+
+            raw_grad_outputs = []
+            m_coeffs = []
+            update_probs = []
+            update_freqs = []
+            for inner_layer_idx, inner_layer in enumerate(self.layers):
+                raw_grads, m_coeff, update_lb_info = inner_layer.compute_raw_grad_only(
+                    inner_pre_updates[inner_layer_idx],
+                    inner_fastws[inner_layer_idx],
+                    inner_masterws[inner_layer_idx],
+                    ki=inner_ki_values[inner_layer_idx],
+                    vi=inner_vi_values[inner_layer_idx],
+                    seqlen_offset=chunk_start,
+                    router_proj_weights=self._get_router(inner_layer_idx),
+                    routing_bias=self._get_router_bias(inner_layer_idx),
+                    precomputed_w0_w2=precomputed[inner_layer_idx],
+                )
+                if m_coeff is None:
+                    raise RuntimeError("cross_layer_cut requires a momentum coefficient per writer.")
+                raw_grad_outputs.extend(raw_grads)
+                m_coeffs.append(m_coeff)
+                probs, freqs = update_lb_info
+                update_probs.append(probs.float())
+                update_freqs.append(freqs.float())
+            return (
+                *raw_grad_outputs,
+                *m_coeffs,
+                torch.stack(update_probs, dim=0),
+                torch.stack(update_freqs, dim=0),
+            )
+
+        checkpoint_args = [*pre_updates, *ki_values, *vi_values]
+        for fastw, masterw, _ in streams:
+            checkpoint_args.extend(fastw)
+            checkpoint_args.extend(masterw)
+        outputs = checkpoint(
+            _writers_inner,
+            *checkpoint_args,
+            preserve_rng_state=False,
+            use_reentrant=False,
+        )
+        raw_grads = [tuple(outputs[3 * idx : 3 * idx + 3]) for idx in range(num_layers)]
+        m_coeffs = list(outputs[3 * num_layers : 4 * num_layers])
+        update_probs = outputs[4 * num_layers]
+        update_freqs = outputs[4 * num_layers + 1]
+
+        for layer_idx in range(num_layers):
+            self._accumulate_lb_info(
+                update_accum_probs,
+                update_accum_freqs,
+                layer_idx,
+                (update_probs[layer_idx], update_freqs[layer_idx]),
+            )
+            self._accumulate_route_stats(
+                update_route_stats,
+                self.layers[layer_idx].memory._last_update_route_stats,
+            )
+
+        flat = []
+        for _, masterw, momentum_buf in streams:
+            if momentum_buf is None:
+                raise RuntimeError("cross_layer_cut requires use_momentum=True.")
+            flat.extend(masterw)
+            flat.extend(momentum_buf)
+        for layer_grads in raw_grads:
+            flat.extend(layer_grads)
+        flat.extend(m_coeffs)
+        new_state = CrossLayerCutAggregateUpdate.apply(
+            self.layers[0].memory,
+            self.memory_aggregate_lr_scale,
+            num_layers,
+            self.memory_cross_layer_cut_vjp_group,
+            *flat,
+        )
+        return [
+            (
+                tuple(new_state[9 * idx : 9 * idx + 3]),
+                tuple(new_state[9 * idx + 3 : 9 * idx + 6]),
+                tuple(new_state[9 * idx + 6 : 9 * idx + 9]),
+            )
+            for idx in range(num_layers)
+        ]
+
+    def _forward_cross_layer_cut(
+        self,
+        inputs_embeds: torch.Tensor,
+        seq_len: int,
+        fastw: Tuple[torch.Tensor, ...],
+        masterw: Tuple[torch.Tensor, ...],
+        momentum_buf: Tuple[torch.Tensor, ...] | None,
+        caches: list[dict[str, Any]],
+        apply_accum_probs: torch.Tensor,
+        apply_accum_freqs: torch.Tensor,
+        update_accum_probs: torch.Tensor,
+        update_accum_freqs: torch.Tensor,
+        apply_route_stats: dict[str, torch.Tensor] | None,
+        update_route_stats: dict[str, torch.Tensor] | None,
+        output_hidden_states: bool,
+        return_dict: bool,
+    ):
+        """Chunk-major training loop of ``forward`` for backward mode ``cross_layer_cut``.
+
+        Line for line the loop of ``forward`` except that layer ``l`` reads backward stream
+        ``l`` of the bank and the chunk-boundary write is
+        ``_update_global_memory_pool_for_chunk_cross_layer_cut``. The initial bank (pool
+        parameters W0) is shared by all streams.
+        """
+        if getattr(self, "memory_num_shared_pools", 1) != 1:
+            raise ValueError("cross_layer_cut supports a single shared pool only.")
+        if not self.memory_update_aggregate_write:
+            raise ValueError("cross_layer_cut requires memory_update_aggregate_write=True.")
+        if len(self._memory_writer_layers) != len(self.layers):
+            raise ValueError("cross_layer_cut is not supported with memory_write_layers other than 'all'.")
+        num_layers = len(self.layers)
+        streams = [(fastw, masterw, momentum_buf)] * num_layers
+        all_hidden_states = () if output_hidden_states else None
+        chunk_outputs = []
+
+        for chunk_start in range(0, seq_len, self.chunk_size):
+            chunk_end = min(chunk_start + self.chunk_size, seq_len)
+            chunk_inputs = inputs_embeds[:, chunk_start:chunk_end]
+            hidden_states = chunk_inputs
+            precomputed = self._cross_layer_cut_precompute_w0_w2([stream[0] for stream in streams])
+
+            for layer_idx, layer in enumerate(self.layers):
+                if output_hidden_states:
+                    all_hidden_states = all_hidden_states + (hidden_states,)
+
+                target = layer if chunk_start == 0 else layer.forward
+                hidden_states, x_attn_in, x_memory_in, attn_k, attn_v, _, _, _ = checkpoint(
+                    target,
+                    hidden_states,
+                    caches[layer_idx]["kv_cache"],
+                    streams[layer_idx][0],
+                    chunk_start,
+                    self._get_router(layer_idx),
+                    self._get_router_bias(layer_idx),
+                    precomputed[layer_idx],
+                    preserve_rng_state=False,
+                    use_reentrant=False,
+                )
+                caches[layer_idx]["xi_out"] = hidden_states
+                caches[layer_idx]["x_attn_in"] = x_attn_in
+                caches[layer_idx]["x_memory_in"] = x_memory_in
+                caches[layer_idx]["attn_k"] = attn_k
+                caches[layer_idx]["attn_v"] = attn_v
+                self._accumulate_lb_info(
+                    apply_accum_probs,
+                    apply_accum_freqs,
+                    layer_idx,
+                    layer.memory._last_apply_lb_info,
+                )
+                self._accumulate_route_stats(apply_route_stats, layer.memory._last_apply_route_stats)
+
+            chunk_outputs.append(hidden_states)
+            if output_hidden_states:
+                all_hidden_states = all_hidden_states + (hidden_states,)
+
+            for layer_idx, layer in enumerate(self.layers):
+                if self.attention_v_gap is not None:
+                    pre_vi = self.pre_attention_norm(caches[self.attention_v_layer_idxs[layer_idx]]["xi_out"])
+                    if self.shared_kv_cache:
+                        pre_vi = self.to_kv_cache(pre_vi)
+                else:
+                    pre_vi = caches[layer_idx]["x_attn_in"]
+
+                caches[layer_idx]["kv_cache"] = layer.update_kv(
+                    pre_vi,
+                    caches[layer_idx]["kv_cache"],
+                    apply_layer_kv=not self.shared_kv_cache,
+                )
+
+            streams = self._update_global_memory_pool_for_chunk_cross_layer_cut(
+                caches,
+                chunk_start,
+                seq_len,
+                streams,
+                update_accum_probs,
+                update_accum_freqs,
+                update_route_stats,
+            )
+
+        hidden_states = torch.cat(chunk_outputs, dim=1)
+        hidden_states = self.norm(hidden_states)
+
+        apply_lb_loss = self._lb_loss_for_scope(apply_accum_probs, apply_accum_freqs)
+        update_lb_loss = self._lb_loss_for_scope(update_accum_probs, update_accum_freqs)
+        if self.memory_lb_mode == "loss":
+            lb_loss = (apply_lb_loss + update_lb_loss) * self.memory_lb_loss_alpha
+        else:
+            lb_loss = apply_lb_loss.new_zeros(())
+        self._store_loss_free_counts(apply_accum_freqs, update_accum_freqs)
+        moe_stats = self._build_moe_stats(
+            apply_lb_loss,
+            update_lb_loss,
+            lb_loss,
+            apply_accum_freqs,
+            update_accum_freqs,
+            apply_route_stats,
+            update_route_stats,
+        )
+
+        if not return_dict:
+            values = [hidden_states, None, all_hidden_states, None]
+            return tuple(v for v in values if v is not None)
+
+        return MoeModelOutput(
+            last_hidden_state=hidden_states,
+            past_key_values=None,
+            hidden_states=all_hidden_states,
+            attentions=None,
+            lb_loss=lb_loss,
+            moe_stats=moe_stats,
+        )
 
     def _update_global_memory_pool_for_chunk(
         self,
@@ -2362,6 +2857,8 @@ class RecurrentLactRefMoeGlobalV45Model(base.RecurrentLactRefModel):
             precomputed_w0_w2 = self._precompute_w0_w2(fastw)
 
             for layer_idx, layer in enumerate(self.layers):
+                if layer_idx not in self._memory_writer_set:
+                    continue
                 pre_update, ki, vi = self._compose_memory_update_inputs(layer, layer_idx, caches)
                 raw_grads, m_coeff, update_lb_info = layer.compute_raw_grad_only(
                     pre_update,
@@ -2679,6 +3176,14 @@ class RecurrentLactRefMoeGlobalV45Model(base.RecurrentLactRefModel):
             inputs_embeds.device,
         )
         pending_len = self._pending_len(caches, seen_tokens, pending_start)
+        cache_state = past_key_values if is_recurrent_lact_cache(past_key_values) else {}
+        pending_inputs = cache_state.get("pending_inputs_embeds")
+        pending_segments = int(cache_state.get("pending_segments", 0))
+        if pending_len and pending_inputs is None:
+            raise ValueError("The generation cache lacks pending input embeddings; restart prefill.")
+        if pending_len and (pending_inputs.shape[:2] != (batch_size, pending_len)
+                            or pending_segments < 1):
+            raise ValueError("The generation cache has inconsistent pending input metadata.")
         global_state = self._init_or_load_generation_global_state(
             past_key_values,
             batch_size,
@@ -2725,9 +3230,14 @@ class RecurrentLactRefMoeGlobalV45Model(base.RecurrentLactRefModel):
                 self._clear_pending_generation_features(caches)
                 pending_start = current_seen
                 pending_len = 0
+                pending_inputs = None
+                pending_segments = 0
 
             take = min(seq_len - local_start, self.chunk_size - pending_len)
             chunk_inputs = inputs_embeds[:, local_start:local_start + take]
+            pending_inputs = (torch.cat((pending_inputs, chunk_inputs), dim=1)
+                              if pending_inputs is not None else chunk_inputs.clone())
+            pending_segments += 1
             append_pending = pending_len > 0
             hidden_states = chunk_inputs
             precomputed_w0_w2 = self._precompute_w0_w2(fastw)
@@ -2787,6 +3297,47 @@ class RecurrentLactRefMoeGlobalV45Model(base.RecurrentLactRefModel):
             current_seen += take
             pending_len += take
 
+            if pending_len == self.chunk_size and pending_segments > 1:
+                # Small BF16 GEMMs can round differently from a complete
+                # chunk. Feeding their concatenated features into Muon
+                # amplifies that drift and changes the recurrent state.
+                # Replay only a fragmented completed chunk, at its original
+                # fast-weight state and KV prefix, before returning the completing
+                # fragment. Whole-chunk prefill and training never replay.
+                replay_layers = []
+                for cache in caches:
+                    prefix = {key: None for key in cache}
+                    prefix["kv_cache"] = tuple(
+                        tensor[:, :pending_start] for tensor in cache["kv_cache"]
+                    )
+                    replay_layers.append(prefix)
+                replay_cache = make_recurrent_lact_cache(
+                    layers=replay_layers,
+                    seen_tokens=pending_start,
+                    pending_start=pending_start,
+                    batch_size=batch_size,
+                    global_state={"fastw": fastw, "masterw": masterw,
+                                  "momentum_buf": momentum_buf},
+                )
+                replay = self._forward_with_generation_cache(
+                    inputs_embeds=pending_inputs,
+                    past_key_values=replay_cache,
+                    output_hidden_states=False,
+                    return_dict=True,
+                )
+                # A single complete chunk remains pending until a following
+                # token arrives, so this replay does not apply an update.
+                caches = replay.past_key_values["layers"]
+                pending_segments = 1
+                # Return the canonical hidden states for this completing
+                # fragment; using replay.last_hidden_state would norm twice.
+                chunk_outputs[-1] = caches[-1]["xi_out"][:, -take:]
+                if output_hidden_states:
+                    canonical = (pending_inputs[:, -take:],) + tuple(
+                        cache["xi_out"][:, -take:] for cache in caches
+                    )
+                    all_hidden_states = all_hidden_states[:-len(canonical)] + canonical
+
         hidden_states = torch.cat(chunk_outputs, dim=1)
         hidden_states = self.norm(hidden_states)
 
@@ -2799,6 +3350,8 @@ class RecurrentLactRefMoeGlobalV45Model(base.RecurrentLactRefModel):
             pending_start=pending_start,
             batch_size=batch_size,
             global_state=global_state,
+            pending_inputs_embeds=pending_inputs,
+            pending_segments=pending_segments,
         )
 
         apply_lb_loss = self._lb_loss_for_scope(apply_accum_probs, apply_accum_freqs)
@@ -2912,6 +3465,24 @@ class RecurrentLactRefMoeGlobalV45Model(base.RecurrentLactRefModel):
         route_stats_enabled = _route_stats_enabled()
         apply_route_stats = self._zero_route_stats(inputs_embeds.device) if route_stats_enabled else None
         update_route_stats = self._zero_route_stats(inputs_embeds.device) if route_stats_enabled else None
+
+        if self._cross_layer_cut_active():
+            return self._forward_cross_layer_cut(
+                inputs_embeds,
+                seq_len,
+                fastw,
+                masterw,
+                momentum_buf,
+                caches,
+                apply_accum_probs,
+                apply_accum_freqs,
+                update_accum_probs,
+                update_accum_freqs,
+                apply_route_stats,
+                update_route_stats,
+                output_hidden_states,
+                return_dict,
+            )
 
         all_hidden_states = () if output_hidden_states else None
         chunk_outputs = []

@@ -11,7 +11,7 @@ from pathlib import Path
 from typing import Any
 
 from uttt_nvs.eval.common import (
-    REPO_ROOT,
+    DEFAULT_REGISTRY,
     import_model,
     load_checkpoint_strict,
     load_model_config,
@@ -23,7 +23,6 @@ from uttt_nvs.eval.fixed_view_dataset import FixedViewNVSDataset
 from uttt_nvs.eval.metrics import ImageMetricComputer
 
 
-DEFAULT_REGISTRY = REPO_ROOT / "eval" / "experiments.yaml"
 MAINLINE_SUFFIXES = ("ttt_dense", "ttt_moe_e8a1", "uttt_moe_e64a1")
 
 

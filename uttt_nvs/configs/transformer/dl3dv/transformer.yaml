@@ -62,4 +62,3 @@ training:
 
 # Evaluation data: DL3DV benchmark (140 test scenes).
 # eval_dataset_path: "PATH/TO/dl3dv_benchmark_manifest.txt"
-setup_config_path: "setup_flash.yaml"

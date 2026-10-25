@@ -18,7 +18,7 @@ import flame.custom_models as custom_models
 
 
 def _unsafe_torch_load(*args, **kwargs):
-    # These checkpoints come from a trusted internal training pipeline.
+    # These checkpoints come from this repository's own training pipeline.
     # PyTorch 2.6 changed torch.load to default weights_only=True, which
     # rejects some objects stored in these DCP shards and temp checkpoint files.
     kwargs["weights_only"] = False
@@ -33,7 +33,7 @@ def _save_pretrained(path: str, model: torch.nn.Module):
             raise
         logger.warning(
             "Falling back to safe_serialization=False because this trusted "
-            "internal checkpoint contains shared tensors."
+            "checkpoint contains shared tensors."
         )
         model.save_pretrained(path, safe_serialization=False)
 
@@ -108,7 +108,7 @@ def save_pretrained(
             logger.info("Loading state dict from the checkpoint")
 
             # Keep the safe globals for legacy checkpoint payloads even though
-            # we also disable weights_only for trusted internal checkpoints.
+            # we also disable weights_only for these trusted checkpoints.
             torch.serialization.add_safe_globals([timedelta, io.BytesIO])
             model.load_state_dict(state_dict)
         finally:

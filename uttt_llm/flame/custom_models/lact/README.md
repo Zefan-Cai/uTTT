@@ -1,5 +1,16 @@
 # LaCT Language Model
 
+> **Note (uTTT release).** This file and `requirement.txt` are the upstream
+> LaCT text, kept verbatim for reference and attribution (MIT license, see the
+> repository's `THIRD_PARTY_NOTICES.md`). The commands below refer to the
+> upstream layout: there is no top-level `train.sh` here and `lact_model/` is
+> already registered in place (no copying step), the job TOMLs of this release
+> are `uttt_llm/configs/exp/*.toml` rather than `flame/models/fla.toml`, and
+> the pins in `requirement.txt` (torch < 2.7,
+> flash-attn 2.7.4.post1) are superseded by the uTTT environment in
+> `uttt_llm/requirements.txt` (torch 2.8.0 + cu128). The uTTT entry points are
+> `uttt_llm/launch/train.sh` and `configs/main/{124M,760M}/lact.json`.
+
 Code  release for [LaCT](https://tianyuanzhang.com/projects/ttt-done-right/) (Large-Chunk TTT) language model.
 
 The code is based on hugging face transformer [flash-linear-attention](https://github.com/fla-org/flash-linear-attention/tree/main), and [flame](https://github.com/fla-org/flame).

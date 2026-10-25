@@ -14,7 +14,7 @@ from pathlib import Path
 from typing import Any
 
 from uttt_nvs.eval.common import (
-    REPO_ROOT,
+    DEFAULT_REGISTRY,
     canonical_json_sha256,
     evaluation_code_sha256,
     git_commit,
@@ -36,7 +36,6 @@ from uttt_nvs.eval.runtime_fingerprint import (
 from uttt_nvs.eval.statistics import RAW_FIELDS, write_evaluation_outputs
 
 
-DEFAULT_REGISTRY = REPO_ROOT / "eval" / "experiments.yaml"
 
 
 def evaluation_run_signature(

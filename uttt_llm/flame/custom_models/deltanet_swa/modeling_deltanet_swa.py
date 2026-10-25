@@ -54,6 +54,7 @@ class DeltaNetWindowMixBlock(GradientCheckpointingLayer):
                 attn_head_dim=config.attn_head_dim,
                 window_size=config.window_size,
                 rope_theta=config.rope_theta,
+                use_window_attention=getattr(config, "use_window_attention", True),
             )
         self.mlp_norm = (RMSNorm if config.fuse_norm else nn.RMSNorm)(config.hidden_size, eps=config.norm_eps)
         self.mlp = DeltaNetMLP(

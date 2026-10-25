@@ -17,7 +17,7 @@ dl3dv:
 ```
 
 Every config carries `training.dataset: obj` or `dl3dv`, which selects the block
-above — so this one file wires up all 64 configs. A config can still override it
+above — so this one file wires up all 73 configs. A config can still override it
 by uncommenting its own `dataset_path` / `eval_dataset_path`.
 
 ## Manifests
@@ -39,11 +39,15 @@ Each line is opened with `open_file()`, which dispatches on the prefix:
 | `s3://…` | Amazon S3 (unsigned/anonymous) | none for public buckets |
 | `gs://…` | Google Cloud Storage | `GOOGLE_APPLICATION_CREDENTIALS` |
 
-Use a backend-matched manifest: local scene paths for a local manifest, S3
-paths for S3, and GCS paths for GCS. Client initialization in the current loader
-depends on the manifest's backend; arbitrary mixed-backend manifests are not
-validated. See the [data contracts guide](../../docs/data-contracts.md) for
-portable paths, geometry conventions and validation boundaries.
+Entries may mix backends within one manifest: `open_file()` dispatches on each
+entry's own prefix, and the S3 / GCS clients are built lazily inside whichever
+worker process first needs them. The manifest file itself
+may be local or remote as well. `boto3` and `google-cloud-storage` are
+imported at module scope, so they must be installed even for local-only
+manifests. The CPU manifest checker validates local entries only and reports
+cloud entries as unvalidated. See the
+[data contracts guide](../../docs/data-contracts.md) for portable paths,
+geometry conventions and validation boundaries.
 
 ## Camera JSON format
 

@@ -14,3 +14,7 @@ experiments/
 .pytest_cache/
 .coverage
 htmlcov/
+ruler_cache/
+slurm-*.out
+*.log
+uttt_nvs/models/imagenet-vgg-verydeep-19.mat

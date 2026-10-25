@@ -94,20 +94,36 @@ settings chunk the output projection, not the definition of the loss. The
 last position has no next-token target and is NaN by design; aggregate with
 NaN-aware means and retain per-position valid counts where available.
 
+**What the paper reports as PTL.** The evaluator writes mean loss by token
+position; the paper's PTL is the NaN-aware mean of that curve over positions
+≥ 30,000 (0-based) of 32,768-token Books3 sequences, i.e. the last 2,768
+positions, following the Forgetting Transformer's per-position convention.
+Whole-curve means or other cut-offs are not comparable with the paper's
+tables.
+
 ### RULER
 
 ```bash
+# --output is a manifest JSON; the cached task assets go to HF_HOME / HF_DATASETS_CACHE
 python eval/ruler/prewarm_ruler_cache.py --model-dir runs/my_run \
-  --output ruler_cache/ --max-length 32768 --trust-remote-code
+  --output ruler_cache_manifest.json --max-length 32768 --trust-remote-code
 python eval/ruler/run_ruler_eval.py --model-dir runs/my_run \
   --output results.json --max-length 32768 --dtype bfloat16 --trust-remote-code
 ```
 
-RULER runs on one GPU in this entry point. Keep task definitions, cache assets,
+`--use-cache` / `--no-use-cache` forces the generation cache on or off; the
+paper's 124M RULER rows used `--no-use-cache`. RULER runs on one GPU in this entry point.
+**What the paper reports as RULER** is the unweighted mean over the thirteen
+RULER tasks at each of the four lengths 4K, 8K, 16K and 32K, then the mean of
+those four numbers; the per-length columns of the paper's table are the four
+intermediate values. Run the four `--max-length` settings and average them
+yourself; a single-length run is not the paper's RULER column. Keep task definitions, cache assets,
 maximum length, generation settings, dtype and seed consistent. The
 `--trust-remote-code` option permits code from the selected model source; use
 it only for sources you have reviewed and trust. Sharded runs can be combined
-with `merge_ruler_shards.py`; check task/sample coverage before reporting totals.
+with `merge_ruler_shards.py --shards-dir <dir> --output-dir <dir> --expected-shards <n>`;
+check task/sample coverage before reporting totals. RULER requires the
+`lm_eval` package (lm-evaluation-harness >= 0.4.9) from `uttt_llm/requirements.txt`.
 
 ## What to report with a new result
 

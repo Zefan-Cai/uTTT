@@ -14,12 +14,14 @@ the model has attention or whether the router itself is shared.
 |---|---|---|---|
 | Layer-private | One layer | None | LaCT, TTT-Dense |
 | Layer-local pool | One layer, containing routed experts | None between layers | TTT-MoE |
-| Universal dense | The depth stack | One dense operator | uTTT-Dense in NVS |
+| Universal dense | The depth stack | One dense operator | uTTT-Dense in NVS and LLM |
 | Universal expert pool | The depth stack | One expert pool | uTTT-MoE in NVS and LLM |
 | Partitioned universal pools | A group of layers | Within each group | NVS topology sweep |
 
-The release does not contain LLM uTTT-Dense. Do not create that row by renaming
-the LLM TTT-Dense package: layer-private and shared state are different methods.
+LLM uTTT-Dense ships as its own package (`uttt_llm/flame/custom_models/uttt_dense/`,
+the paper's appendix rows at 124M, r ∈ {1, 2, 4, 6}). It is not the TTT-Dense
+package with a renamed `model_type`: layer-private and shared state are different
+methods and different code.
 
 ## Three distinct kinds of state
 
@@ -91,13 +93,20 @@ but does not instantiate them.
 
 The LLM release intentionally preserves separate packages for the experimental
 rows. The [registry](../uttt_llm/flame/custom_models/__init__.py) imports their
-Transformers registrations. `model_type` is a checkpoint compatibility field,
-not just a display label.
+Transformers registrations. `model_type` is the stable identifier of each
+implementation in this release (no checkpoints are released), not just a
+display label; a config and the package it names must stay paired.
 
-- [TTT-Dense](../uttt_llm/flame/custom_models/ttt_dense) and the two
-  [unbalanced](../uttt_llm/flame/custom_models/ttt_moe_no_lb) /
-  [balanced](../uttt_llm/flame/custom_models/ttt_moe_lb) TTT-MoE implementations
-  correspond to the released training runs, rather than aliases of uTTT-MoE.
+- [TTT-Dense](../uttt_llm/flame/custom_models/ttt_dense) and
+  [TTT-MoE](../uttt_llm/flame/custom_models/ttt_moe_lb) (loss-free balancing,
+  the row of the paper's main table) correspond to the released training runs,
+  rather than aliases of uTTT-MoE. The earlier unbalanced implementation,
+  [ttt_moe_no_lb](../uttt_llm/flame/custom_models/ttt_moe_no_lb), backs only
+  the appendix balancing table.
+- The SWA baselines ([DeltaNet](../uttt_llm/flame/custom_models/deltanet_swa),
+  [Gated DeltaNet](../uttt_llm/flame/custom_models/gated_deltanet_swa), and the
+  KDA / Mamba-2 / MoM packages added in this release) each pair the same 4K
+  window with a different bounded-state mixer.
 - [uTTT-MoE modeling](../uttt_llm/flame/custom_models/uttt_moe/modeling_recurrent_lact.py)
   owns the shared-pool initialization, aggregate update path, routing statistics,
   forward execution and generation cache handling.

@@ -72,9 +72,10 @@ them relative to the manifest. Prefer absolute paths for reproducibility.
 
 The checker is deliberately local-only. It reports S3/GCS entries as
 unvalidated errors instead of pretending that inaccessible cloud objects pass.
-The training loader has cloud support; follow the [domain data guide](../uttt_nvs/data/README.md)
-and validate access from every worker node. Use backend-matched manifests;
-mixed-backend manifests are not covered by the CPU checks.
+The training loader has cloud support, including manifests that mix local,
+`s3://` and `gs://` entries; follow the [domain data guide](../uttt_nvs/data/README.md)
+and validate access from every worker node. The CPU checks validate local
+entries only.
 
 ### Dataset registry
 
@@ -103,10 +104,14 @@ LLM domain:
 
 ```bash
 cd uttt_llm
+huggingface-cli login   # gated dataset: anonymous access returns HTTP 401
 python -m flame.utils.preprocess \
   --dataset togethercomputer/Long-Data-Collections \
+  --data_dir pretrain \
   --path /data/long-data-collections-arrow
 ```
+
+`--data_dir pretrain` selects the pre-training files used in the paper.
 
 Use a dataset you are authorized to access and respect its license and source
 availability. This repository does not redistribute corpus contents or

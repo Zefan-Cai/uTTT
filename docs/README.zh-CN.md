@@ -1,20 +1,11 @@
 # uTTT 中文使用指南
 
+[项目主页](https://zefan-cai.github.io/uTTT.github.io/) · [论文 arXiv:2610.05484](https://arxiv.org/abs/2610.05484) · [English README](../README.md)
+
 本仓库研究的是 **fast weights 在网络深度上的所有权**：从每层独占的
 TTT-Dense / LaCT，到每层独立专家池 TTT-MoE，再到跨层共享的
 uTTT-Dense / uTTT-MoE。语言建模与新视角合成（NVS）使用不同实现，
 不能仅靠更改模型名字把一个实验变成另一个实验。
-
-## 仓库关系
-
-- [uTTT-DEV](https://github.com/Zefan-Cai/uTTT-DEV)：原仓库改名，保留原有身份和历史。
-- [uTTT](https://github.com/Zefan-Cai/uTTT)：全新的升级仓库，全部代码和文档重新提交为
-  一个初始提交，不继承旧仓库的提交历史。
-- 旧 clone 的 `/uTTT.git` 地址现在指向新仓库；继续开发原版时需要主动改成
-  `/uTTT-DEV.git`。详见[迁移说明](migration.md)。
-
-升级重点是运行可靠性、测试、可复现性和文档，不是未经验证地更改算法。
-原模型实现、实验配置、论文结果图片保持不变；本次没有新增性能或精度结论。
 
 ## 先选入口
 
@@ -42,7 +33,7 @@ bash uttt_llm/launch/train.sh --dry-run \
   uttt_llm/configs/main/124M/uttt_moe.json first_run
 ```
 
-静态检查覆盖 **64 份 NVS YAML、57 份 LLM JSON、3 份任务 TOML**。
+静态检查覆盖 **全部 NVS YAML、LLM JSON 与任务 TOML**（当前数量见生成的配置目录）。
 检查维度整除、专家数量、共享池约束、batch 算术及源码类名，不导入 CUDA 模型。
 `--dry-run` 只校验启动参数并打印命令，不启动 GPU 进程，也不运行 `NODE_SYNC`。
 

@@ -33,8 +33,6 @@ experiments:
   display_name: Transformer
   expected_v_gap: null
   evaluation_class: formal_vgap_null
-  source_wandb_run: jmaz19do
-  source_commit: 5223e03cbe9629774ac97395b03d36dc3277924b
 - id: gso_transformer_vgapnull
   dataset: gso
   model: transformer
@@ -47,7 +45,3 @@ experiments:
   display_name: Transformer
   expected_v_gap: null
   evaluation_class: formal_vgap_null
-  source_wandb_run: 8vnn4qn2
-  source_commit: ac4b32e1e5eae6096f2733ffb2e9740d711df6b5
-  _note: 'TODO: point at a v_gap=null Objaverse checkpoint. The source_wandb_run below is the earlier
-    v_gap=0 ablation and does not match this config.'

@@ -92,6 +92,7 @@ def main() -> int:
 
     failures = []
     skips = []
+    asset_skips = []
     all_paths = set()
     for path in configs:
         rel = path.relative_to(CONFIG_ROOT)
@@ -110,6 +111,7 @@ def main() -> int:
 
         bad = None
         skipped = None
+        asset_skipped = None
         for dotted in dotted_paths:
             all_paths.add(dotted)
             try:
@@ -131,10 +133,21 @@ def main() -> int:
                 continue
             except OptionalDependencyMissing as exc:
                 skipped = (cfg["model"]["class_name"], exc)
+            except FileNotFoundError as exc:
+                # A downloadable asset (the VGG-19 .mat of the perceptual loss in the
+                # scale configs), not a package: reported separately and never a
+                # --strict failure, since the code itself constructed up to that point.
+                if "VGG-19" in str(exc):
+                    asset_skipped = (cfg["model"]["class_name"], exc)
+                else:
+                    bad = (cfg["model"]["class_name"], exc)
             except Exception as exc:
                 bad = (cfg["model"]["class_name"], exc)
 
-        if bad:
+        if asset_skipped:
+            asset_skips.append((rel, asset_skipped[0], asset_skipped[1]))
+            print(f"  SKIP  {rel}  (asset missing: {str(asset_skipped[1]).split('.')[0]})")
+        elif bad:
             failures.append((rel, bad[0], bad[1]))
             print(f"  FAIL  {rel}\n          {bad[0]}\n          {type(bad[1]).__name__}: {bad[1]}")
         elif skipped:
@@ -147,8 +160,12 @@ def main() -> int:
     for dotted in sorted(all_paths):
         print(f"  {dotted}")
 
-    resolved = len(configs) - len(failures) - len(skips)
+    resolved = len(configs) - len(failures) - len(skips) - len(asset_skips)
     print(f"\n{resolved}/{len(configs)} configs resolved.")
+    if asset_skips:
+        print(f"{len(asset_skips)} skipped (downloadable asset missing; see uttt_nvs/README.md, Larger models):")
+        for rel, dotted, exc in asset_skips:
+            print(f"  {rel}: {exc}")
     if skips:
         print(f"{len(skips)} skipped (optional dependency unavailable):")
         for rel, dotted, exc in skips:
@@ -163,6 +180,9 @@ def main() -> int:
         print(f"No configs failed, but {len(skips)} could not be checked because an "
               f"optional dependency is missing. Coverage is {resolved}/{len(configs)}, "
               f"not {len(configs)}/{len(configs)}. Use --strict to make this an error.")
+        return 0
+    if asset_skips:
+        print(f"No configs failed; {len(asset_skips)} need the VGG-19 weights to be constructed.")
         return 0
     print(f"All {len(configs)} configs checked.")
     return 0

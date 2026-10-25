@@ -23,6 +23,12 @@ def _no_weight_decay_name(name: str) -> bool:
         or name.endswith("prev_chunk_alphas")
         or name.endswith("first_chunk_alpha")
         or name.endswith("first_chunk_alphas")
+        # SSM scalars of the Mamba-2 / Gated DeltaNet / KDA / MoM mixers. mamba_ssm marks
+        # them `_no_weight_decay`, but the attribute does not survive FSDP's DTensor
+        # conversion, so they are matched by name (as in every paper run of those rows).
+        or name.endswith(".A_log")
+        or name.endswith(".dt_bias")
+        or name.endswith(".D")
     )
 
 

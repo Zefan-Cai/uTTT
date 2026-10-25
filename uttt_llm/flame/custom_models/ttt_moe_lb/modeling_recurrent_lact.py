@@ -959,7 +959,9 @@ class RecurrentLactRefMoeV5Model(base.RecurrentLactRefModel):
                 return
             effective_step = steps - self.memory_loss_free_warmup_steps
             if effective_step % self.memory_loss_free_update_interval != 0:
-                counts.zero_()
+                # Keep accumulating: one bias update per `update_interval` forwards
+                # (the trainer sets it to the gradient-accumulation factor, so the
+                # update sees the whole optimizer-step batch, as in the paper).
                 return
 
             bias = self.memory_loss_free_bias
@@ -993,7 +995,9 @@ class RecurrentLactRefMoeV5Model(base.RecurrentLactRefModel):
                 dtype=self.memory_loss_free_pending_counts.dtype,
             )
             self._sync_loss_free_counts(counts)
-            self.memory_loss_free_pending_counts.copy_(counts)
+            # Accumulate rather than overwrite: with update_interval == 1 the buffer
+            # was zeroed by the preceding update, so this equals the old copy_.
+            self.memory_loss_free_pending_counts.add_(counts)
             self.memory_loss_free_steps.add_(1)
 
     @staticmethod

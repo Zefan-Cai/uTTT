@@ -365,3 +365,227 @@ experiments:
     checkpoint_impl: uttt_moe
     group: uttt_moe
     display_name: uTTT-MoE-e64a8
+
+  # --- rows added in this release: depth partitions, the chained-write ablation and the
+  # linear-attention references. Not part of the 34-run paper rerun; checkpoint paths
+  # follow the same layout and are yours to provide.
+  - id: gso_uttt_moe_p2_e32
+    dataset: gso
+    model: uttt_moe_p2_e32
+    paper_model: uTTT-MoE
+    config: uttt_nvs/configs/topology/obj/uttt_moe_p2_e32.yaml
+    checkpoint: object/uttt_moe_p2_e32/checkpoint.pt
+    checkpoint_step: 24476
+    checkpoint_impl: uttt_moe_partitioned
+    group: uttt_moe
+    display_name: uTTT-MoE-e16-p2
+  - id: gso_uttt_moe_p4_e32
+    dataset: gso
+    model: uttt_moe_p4_e32
+    paper_model: uTTT-MoE
+    config: uttt_nvs/configs/topology/obj/uttt_moe_p4_e32.yaml
+    checkpoint: object/uttt_moe_p4_e32/checkpoint.pt
+    checkpoint_step: 24476
+    checkpoint_impl: uttt_moe_partitioned
+    group: uttt_moe
+    display_name: uTTT-MoE-e8-p4
+  - id: gso_uttt_moe_p2_e64
+    dataset: gso
+    model: uttt_moe_p2_e64
+    paper_model: uTTT-MoE
+    config: uttt_nvs/configs/topology/obj/uttt_moe_p2_e64.yaml
+    checkpoint: object/uttt_moe_p2_e64/checkpoint.pt
+    checkpoint_step: 24476
+    checkpoint_impl: uttt_moe_partitioned
+    group: uttt_moe
+    display_name: uTTT-MoE-e32-p2
+  - id: gso_uttt_moe_p4_e64
+    dataset: gso
+    model: uttt_moe_p4_e64
+    paper_model: uTTT-MoE
+    config: uttt_nvs/configs/topology/obj/uttt_moe_p4_e64.yaml
+    checkpoint: object/uttt_moe_p4_e64/checkpoint.pt
+    checkpoint_step: 24476
+    checkpoint_impl: uttt_moe_partitioned
+    group: uttt_moe
+    display_name: uTTT-MoE-e16-p4
+  - id: gso_uttt_dense_w4_p2
+    dataset: gso
+    model: uttt_dense_w4_p2
+    paper_model: uTTT-Dense
+    config: uttt_nvs/configs/topology/obj/uttt_dense_w4_p2.yaml
+    checkpoint: object/uttt_dense_w4_p2/checkpoint.pt
+    checkpoint_step: 24476
+    checkpoint_impl: uttt_dense_partitioned
+    group: uttt_dense
+    display_name: uTTT-Dense-w4-p2
+  - id: gso_uttt_dense_w2_p4
+    dataset: gso
+    model: uttt_dense_w2_p4
+    paper_model: uTTT-Dense
+    config: uttt_nvs/configs/topology/obj/uttt_dense_w2_p4.yaml
+    checkpoint: object/uttt_dense_w2_p4/checkpoint.pt
+    checkpoint_step: 24476
+    checkpoint_impl: uttt_dense_partitioned
+    group: uttt_dense
+    display_name: uTTT-Dense-w2-p4
+  - id: gso_uttt_dense_w1_p2
+    dataset: gso
+    model: uttt_dense_w1_p2
+    paper_model: uTTT-Dense
+    config: uttt_nvs/configs/topology/obj/uttt_dense_w1_p2.yaml
+    checkpoint: object/uttt_dense_w1_p2/checkpoint.pt
+    checkpoint_step: 24476
+    checkpoint_impl: uttt_dense_partitioned
+    group: uttt_dense
+    display_name: uTTT-Dense-w1-p2
+  - id: gso_uttt_dense_w1_p4
+    dataset: gso
+    model: uttt_dense_w1_p4
+    paper_model: uTTT-Dense
+    config: uttt_nvs/configs/topology/obj/uttt_dense_w1_p4.yaml
+    checkpoint: object/uttt_dense_w1_p4/checkpoint.pt
+    checkpoint_step: 24476
+    checkpoint_impl: uttt_dense_partitioned
+    group: uttt_dense
+    display_name: uTTT-Dense-w1-p4
+  - id: gso_uttt_moe_e64a1_chained
+    dataset: gso
+    model: uttt_moe_e64a1_chained
+    paper_model: uTTT-MoE
+    config: uttt_nvs/configs/schedule/obj/uttt_moe_e64a1_chained.yaml
+    checkpoint: object/uttt_moe_e64a1_chained/checkpoint.pt
+    checkpoint_step: 24476
+    checkpoint_impl: uttt_moe
+    group: uttt_moe
+    display_name: uTTT-MoE-e64a1 (chained write)
+  - id: gso_deltanet
+    dataset: gso
+    model: deltanet
+    paper_model: DeltaNet
+    config: uttt_nvs/configs/reference/obj/deltanet.yaml
+    checkpoint: object/deltanet/checkpoint.pt
+    checkpoint_step: 24476
+    checkpoint_impl: deltanet
+    group: reference
+    display_name: DeltaNet
+  - id: gso_gated_deltanet
+    dataset: gso
+    model: gated_deltanet
+    paper_model: Gated DeltaNet
+    config: uttt_nvs/configs/reference/obj/gated_deltanet.yaml
+    checkpoint: object/gated_deltanet/checkpoint.pt
+    checkpoint_step: 24476
+    checkpoint_impl: gated_deltanet
+    group: reference
+    display_name: Gated DeltaNet
+  - id: dl3dv_uttt_moe_p2_e32
+    dataset: dl3dv
+    model: uttt_moe_p2_e32
+    paper_model: uTTT-MoE
+    config: uttt_nvs/configs/topology/dl3dv/uttt_moe_p2_e32.yaml
+    checkpoint: dl3dv/uttt_moe_p2_e32/checkpoint.pt
+    checkpoint_step: 20046
+    checkpoint_impl: uttt_moe_partitioned
+    group: uttt_moe
+    display_name: uTTT-MoE-e16-p2
+  - id: dl3dv_uttt_moe_p4_e32
+    dataset: dl3dv
+    model: uttt_moe_p4_e32
+    paper_model: uTTT-MoE
+    config: uttt_nvs/configs/topology/dl3dv/uttt_moe_p4_e32.yaml
+    checkpoint: dl3dv/uttt_moe_p4_e32/checkpoint.pt
+    checkpoint_step: 20046
+    checkpoint_impl: uttt_moe_partitioned
+    group: uttt_moe
+    display_name: uTTT-MoE-e8-p4
+  - id: dl3dv_uttt_moe_p2_e64
+    dataset: dl3dv
+    model: uttt_moe_p2_e64
+    paper_model: uTTT-MoE
+    config: uttt_nvs/configs/topology/dl3dv/uttt_moe_p2_e64.yaml
+    checkpoint: dl3dv/uttt_moe_p2_e64/checkpoint.pt
+    checkpoint_step: 20046
+    checkpoint_impl: uttt_moe_partitioned
+    group: uttt_moe
+    display_name: uTTT-MoE-e32-p2
+  - id: dl3dv_uttt_moe_p4_e64
+    dataset: dl3dv
+    model: uttt_moe_p4_e64
+    paper_model: uTTT-MoE
+    config: uttt_nvs/configs/topology/dl3dv/uttt_moe_p4_e64.yaml
+    checkpoint: dl3dv/uttt_moe_p4_e64/checkpoint.pt
+    checkpoint_step: 20046
+    checkpoint_impl: uttt_moe_partitioned
+    group: uttt_moe
+    display_name: uTTT-MoE-e16-p4
+  - id: dl3dv_uttt_dense_w4_p2
+    dataset: dl3dv
+    model: uttt_dense_w4_p2
+    paper_model: uTTT-Dense
+    config: uttt_nvs/configs/topology/dl3dv/uttt_dense_w4_p2.yaml
+    checkpoint: dl3dv/uttt_dense_w4_p2/checkpoint.pt
+    checkpoint_step: 20046
+    checkpoint_impl: uttt_dense_partitioned
+    group: uttt_dense
+    display_name: uTTT-Dense-w4-p2
+  - id: dl3dv_uttt_dense_w2_p4
+    dataset: dl3dv
+    model: uttt_dense_w2_p4
+    paper_model: uTTT-Dense
+    config: uttt_nvs/configs/topology/dl3dv/uttt_dense_w2_p4.yaml
+    checkpoint: dl3dv/uttt_dense_w2_p4/checkpoint.pt
+    checkpoint_step: 20046
+    checkpoint_impl: uttt_dense_partitioned
+    group: uttt_dense
+    display_name: uTTT-Dense-w2-p4
+  - id: dl3dv_uttt_dense_w1_p2
+    dataset: dl3dv
+    model: uttt_dense_w1_p2
+    paper_model: uTTT-Dense
+    config: uttt_nvs/configs/topology/dl3dv/uttt_dense_w1_p2.yaml
+    checkpoint: dl3dv/uttt_dense_w1_p2/checkpoint.pt
+    checkpoint_step: 20046
+    checkpoint_impl: uttt_dense_partitioned
+    group: uttt_dense
+    display_name: uTTT-Dense-w1-p2
+  - id: dl3dv_uttt_dense_w1_p4
+    dataset: dl3dv
+    model: uttt_dense_w1_p4
+    paper_model: uTTT-Dense
+    config: uttt_nvs/configs/topology/dl3dv/uttt_dense_w1_p4.yaml
+    checkpoint: dl3dv/uttt_dense_w1_p4/checkpoint.pt
+    checkpoint_step: 20046
+    checkpoint_impl: uttt_dense_partitioned
+    group: uttt_dense
+    display_name: uTTT-Dense-w1-p4
+  - id: dl3dv_uttt_moe_e64a1_chained
+    dataset: dl3dv
+    model: uttt_moe_e64a1_chained
+    paper_model: uTTT-MoE
+    config: uttt_nvs/configs/schedule/dl3dv/uttt_moe_e64a1_chained.yaml
+    checkpoint: dl3dv/uttt_moe_e64a1_chained/checkpoint.pt
+    checkpoint_step: 20046
+    checkpoint_impl: uttt_moe
+    group: uttt_moe
+    display_name: uTTT-MoE-e64a1 (chained write)
+  - id: dl3dv_deltanet
+    dataset: dl3dv
+    model: deltanet
+    paper_model: DeltaNet
+    config: uttt_nvs/configs/reference/dl3dv/deltanet.yaml
+    checkpoint: dl3dv/deltanet/checkpoint.pt
+    checkpoint_step: 20046
+    checkpoint_impl: deltanet
+    group: reference
+    display_name: DeltaNet
+  - id: dl3dv_gated_deltanet
+    dataset: dl3dv
+    model: gated_deltanet
+    paper_model: Gated DeltaNet
+    config: uttt_nvs/configs/reference/dl3dv/gated_deltanet.yaml
+    checkpoint: dl3dv/gated_deltanet/checkpoint.pt
+    checkpoint_step: 20046
+    checkpoint_impl: gated_deltanet
+    group: reference
+    display_name: Gated DeltaNet

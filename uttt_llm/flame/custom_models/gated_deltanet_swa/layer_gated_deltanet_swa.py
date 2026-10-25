@@ -23,23 +23,31 @@ class GatedDeltaNetWindowMix(GatedDeltaNet):
     def __init__(
         self,
         *args,
+        attn_head_dim: int | None = None,
         window_size: int | None = 4096,
         rope_theta: float = 1000000.0,
+        use_window_attention: bool = True,
         **kwargs,
     ) -> None:
         super().__init__(*args, **kwargs)
-        self.attn_head_dim = self.head_dim
+        # None -> legacy behaviour: SWA head dim tied to the GDN head_dim. The SWA branch
+        # re-splits the shared q/k (key_dim) and v (value_dim) projections into
+        # key_dim // attn_head_dim q-heads and value_dim // attn_head_dim v-heads.
+        self.attn_head_dim = attn_head_dim if attn_head_dim is not None else self.head_dim
         self.window_size = window_size
         self.rope_theta = rope_theta
+        self.use_window_attention = use_window_attention
         parameter_dtype = torch.get_default_dtype()
-        self.qk_scale = nn.Parameter(torch.ones(self.key_dim, 2, dtype=parameter_dtype))
-        self.qk_offset = nn.Parameter(torch.zeros(self.key_dim, 2, dtype=parameter_dtype))
-        self.rotary = RotaryEmbedding(dim=self.attn_head_dim, base=self.rope_theta)
+        if self.use_window_attention:
+            self.qk_scale = nn.Parameter(torch.ones(self.key_dim, 2, dtype=parameter_dtype))
+            self.qk_offset = nn.Parameter(torch.zeros(self.key_dim, 2, dtype=parameter_dtype))
+            self.rotary = RotaryEmbedding(dim=self.attn_head_dim, base=self.rope_theta)
         cast_floating_point_parameters(self, parameter_dtype)
 
     def reset_parameters(self) -> None:
-        nn.init.ones_(self.qk_scale)
-        nn.init.zeros_(self.qk_offset)
+        if self.use_window_attention:
+            nn.init.ones_(self.qk_scale)
+            nn.init.zeros_(self.qk_offset)
         with torch.no_grad():
             A = torch.empty_like(self.A_log, dtype=torch.float32).uniform_(0, 16)
             self.A_log.copy_(torch.log(A).to(dtype=self.A_log.dtype))
@@ -85,18 +93,20 @@ class GatedDeltaNetWindowMix(GatedDeltaNet):
         k = self.k_proj(hidden_states)
         v = self.v_proj(hidden_states)
 
-        attn_o = sliding_window_attention_from_projections(
-            q,
-            k,
-            v,
-            qk_scale=self.qk_scale,
-            qk_offset=self.qk_offset,
-            attn_head_dim=self.attn_head_dim,
-            rotary=self.rotary,
-            window_size=self.window_size,
-            cu_seqlens=cu_seqlens,
-            max_seqlen=max_seqlen,
-        )
+        attn_o = None
+        if self.use_window_attention:
+            attn_o = sliding_window_attention_from_projections(
+                q,
+                k,
+                v,
+                qk_scale=self.qk_scale,
+                qk_offset=self.qk_offset,
+                attn_head_dim=self.attn_head_dim,
+                rotary=self.rotary,
+                window_size=self.window_size,
+                cu_seqlens=cu_seqlens,
+                max_seqlen=max_seqlen,
+            )
 
         if self.use_short_conv:
             conv_state_q, conv_state_k, conv_state_v = None, None, None
@@ -179,7 +189,7 @@ class GatedDeltaNetWindowMix(GatedDeltaNet):
         else:
             o = self.o_norm(o)
         o = rearrange(o, "b t h d -> b t (h d)")
-        o = self.o_proj(o + attn_o)
+        o = self.o_proj(o if attn_o is None else o + attn_o)
         if attention_mask is not None:
             o = pad_input(o.squeeze(0), indices, batch_size, q_len)
 
